@@ -23,21 +23,43 @@ LOCAL = Path(__file__).parent / "assets" / "df_final.parquet"
 # -------------------------------
 # II. Helpers
 # -------------------------------
-@st.cache_data(show_spinner=False)
-def load_data(path: str) -> pd.DataFrame:
+
+@st.cache_data(show_spinner=True)
+def load_local_parquet(path: str) -> pd.DataFrame:
     df = pd.read_parquet(path)
+    return clean_df(df)
+
+@st.cache_data(show_spinner=True)
+def load_parquet_from_url(url: str) -> pd.DataFrame:
+    # cache on the *string URL*, do the download inside
+    r = requests.get(url, timeout=120)
+    r.raise_for_status()
+    df = pd.read_parquet(io.BytesIO(r.content), engine="pyarrow")
+    return clean_df(df)
+
+def clean_df(df: pd.DataFrame) -> pd.DataFrame:
     # Keep required columns
     expected = {"review_id", "app", "score", "review_text", "review_date"}
     missing = expected - set(df.columns)
     if missing:
         raise ValueError(f"Missing required columns: {sorted(missing)}")
-    # Types & cleaning
-    df = df.copy()
-    df["review_date"] = pd.to_datetime(df["review_date"], errors="coerce")
-    df = df.dropna(subset=["review_date"]) # need dates for the chart
-    df["score"] = pd.to_numeric(df["score"], errors="coerce")
-    return df
 
+    df = df.copy()
+
+    # Types & cleaning (cheap but prevents repeated heavy work downstream)
+    df["review_date"] = pd.to_datetime(df["review_date"], errors="coerce")
+    df = df.dropna(subset=["review_date"])
+    df["score"] = pd.to_numeric(df["score"], errors="coerce").astype("Int8")
+
+    # Memory optimizations
+    if df["app"].dtype == object:
+        df["app"] = df["app"].astype("category")
+
+    # If you don’t plot/use full text, consider:
+    # df = df.drop(columns=["review_text"])
+
+    return df
+    
 def period_start_from_unit(dt: pd.Series, unit: str) -> pd.Series:
     dt = pd.to_datetime(dt)
     unit = unit.lower()
@@ -110,16 +132,19 @@ def palette_in_order(app_order: list[str], palette: dict[str, str]) -> list[str]
 # III. Load
 # -------------------------------
 
-def get_df():
+def get_df() -> pd.DataFrame:
     if LOCAL.exists():
-        return load_data(str(LOCAL))
+        return load_local_parquet(str(LOCAL))
+
     url = st.secrets.get("DATA_URL")
     if url:
-        r = requests.get(url); r.raise_for_status()
-        return load_data(io.BytesIO(r.content))
-    up = st.file_uploader("Upload df_final.parquet", type=["parquet"])
-    if not up: st.stop()
-    return load_data(up)
+        return load_parquet_from_url(url)
+
+    up = st.file_uploader("Upload df_final.parquet", type="parquet")
+    if not up:
+        st.stop()
+    df = pd.read_parquet(up, engine="pyarrow")
+    return clean_df(df)
 
 df = get_df()
 
