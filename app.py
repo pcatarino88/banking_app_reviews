@@ -6,6 +6,8 @@ import io, requests, streamlit as st
 import altair as alt
 from pathlib import Path
 
+import os, psutil
+
 # -------------------------------
 # I. Page config
 # -------------------------------
@@ -15,8 +17,19 @@ page_icon="📱",
 layout="wide",
 )
 
-st.title("📱 Banking App Reviews")
-st.caption("Interactive analysis of app store ratings and reviews.")
+def show_memory_usage():
+    p = psutil.Process(os.getpid())
+    st.sidebar.caption(f"RAM used: {p.memory_info().rss / 1024**2:.0f} MB")
+
+def main():
+    show_memory_usage()  # will show in sidebar
+
+    st.title("📱 Banking App Reviews")
+    st.caption("Interactive analysis of app store ratings and reviews.")
+
+
+if __name__ == "__main__":
+    main()
 
 LOCAL = Path(__file__).parent / "assets" / "df_final.parquet"
 
@@ -151,6 +164,7 @@ df = get_df()
 # -------------------------------
 # Tabs
 # -------------------------------
+
 app_tab, topics_tab, reviews_tab = st.tabs(["App Ratings", "Key Topics (WiP)", "Search Reviews (WiP)"])
 
 # -------------------------------
