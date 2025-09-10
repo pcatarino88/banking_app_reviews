@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 import numpy as np
 import pandas as pd
-import streamlit as st
+import io, requests, streamlit as st
 import altair as alt
 from pathlib import Path
 
@@ -18,7 +18,7 @@ layout="wide",
 st.title("📱 Banking App Reviews")
 st.caption("Interactive analysis of app store ratings and reviews.")
 
-DATA_PATH = Path(__file__).parent / "assets" / "df_final.parquet"
+LOCAL = Path(__file__).parent / "assets" / "df_final.parquet"
 
 # -------------------------------
 # II. Helpers
@@ -109,12 +109,19 @@ def palette_in_order(app_order: list[str], palette: dict[str, str]) -> list[str]
 # -------------------------------
 # III. Load
 # -------------------------------
-try:
-    df = load_data(DATA_PATH)
-except Exception as e:
-    st.error(f"Could not load data from '{DATA_PATH}': {e}")
-    st.stop()
 
+def get_df():
+    if LOCAL.exists():
+        return load_data(str(LOCAL))
+    url = st.secrets.get("DATA_URL")
+    if url:
+        r = requests.get(url); r.raise_for_status()
+        return load_data(io.BytesIO(r.content))
+    up = st.file_uploader("Upload df_final.parquet", type=["parquet"])
+    if not up: st.stop()
+    return load_data(up)
+
+df = get_df()
 
 # -------------------------------
 # Tabs
