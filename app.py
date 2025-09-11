@@ -8,7 +8,8 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import altair as alt
-from huggingface_hub import hf_hub_download  # NEW
+from huggingface_hub import hf_hub_download
+import plotly.graph_objects as go
 
 import psutil  # memory widget
 
@@ -26,7 +27,7 @@ st.markdown(
     <style>
     /* reduce the big top padding Streamlit applies */
     .block-container {
-        padding-top: 1rem;
+        padding-top: 1.5rem;
         padding-bottom: 1rem;
     }
     </style>
@@ -134,22 +135,6 @@ def rebin_from_month(df_monthly: pd.DataFrame, unit: str) -> pd.DataFrame:
     )
     return out
 
-# Brand colors (kept)
-BRAND_COLORS = {
-    "Barclays": "#00AEEF",
-    "HSBC": "#FF4D4D",
-    "Lloyds": "#005A2B",
-    "Monzo": "#14233C",
-    "Revolut": "#001A72",
-    "Santander UK": "#EC0000",
-    "Santander": "#EC0000",
-}
-
-DEFAULT_CYCLE = [
-    "#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F",
-    "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC",
-]
-
 def build_brand_palette(apps: list[str]) -> dict[str, str]:
     palette = {}
     idx = 0
@@ -168,10 +153,61 @@ def palette_in_order(app_order: list[str], palette: dict[str, str]) -> list[str]
         colors.append(palette.get(app, next(fallback_cycle)))
     return colors
 
+# Brand colors (kept)
+BRAND_COLORS = {
+    "Barclays": "#00AEEF",
+    "HSBC": "#FF4D4D",
+    "Lloyds": "#005A2B",
+    "Monzo": "#14233C",
+    "Revolut": "#001A72",
+    "Santander UK": "#EC0000",
+    "Santander": "#EC0000",
+}
+
+DEFAULT_CYCLE = [
+    "#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F",
+    "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC",
+]
+
+# === CONFIG FOR TAB 2 ===========================
+
+@st.cache_data(show_spinner=False)
+def load_tab2_frame() -> pd.DataFrame:
+    cols = [APP_COL, DATE_COL, SCORE_COL, TOPIC_POS_COL, TOPIC_NEG_COL]
+    url = st.secrets.get("DATA_TAB2", None)
+    if url:
+        df = pd.read_parquet(url, columns=cols)  # <-- select columns!
+    else:
+        df = pd.read_parquet("assets/df_final.parquet", columns=cols)
+
+    # Light, memory-friendly dtypes
+    df[DATE_COL]  = pd.to_datetime(df[DATE_COL], errors="coerce")
+    df[SCORE_COL] = pd.to_numeric(df[SCORE_COL], errors="coerce").astype("Int64")
+
+    # Categories reduce memory & speed up groupby
+    for c in (APP_COL, TOPIC_POS_COL, TOPIC_NEG_COL):
+        df[c] = df[c].astype("category")
+
+    return df
+
+APP_COL = "app"                
+DATE_COL = "review_date"        
+SCORE_COL = "score"            
+TOPIC_POS_COL = "topic_label_POS"
+TOPIC_NEG_COL = "topic_label_NEG"
+UNDEFINED_LABEL = "Undefined"
+
+COLOR_CYCLE = [
+    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+    "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"
+]
+
 # -------------------------------
-# III. Load monthly DF from HF
+# III. Load dataframes from HF
 # -------------------------------
-df = load_monthly_from_hf()
+df_tab1 = load_monthly_from_hf()
+
+df_tab2 = load_tab2_frame()
 
 # -------------------------------
 # Main
@@ -184,7 +220,7 @@ def main():
 
     # Tabs
     app_tab, topics_tab, reviews_tab = st.tabs(
-        ["App Ratings", "Key Topics (WiP)", "Search Reviews (WiP)"]
+        ["App Ratings", "Key Topics", "Search Reviews (WiP)"]
     )
     
     # -------------------------------
@@ -194,17 +230,18 @@ def main():
         st.subheader("Evolution of Apps' rating")
 
         with st.container():
-            cols = st.columns([2, 3, 2])
+            cols = st.columns([2, 2, 2])
 
             # 1) Bank App filter
-            app_list = sorted(df["app"].dropna().unique().tolist())
+            app_list = sorted(df_tab1["app"].dropna().unique().tolist())
             selected_apps = cols[0].multiselect(
-                "Bank App", options=app_list, default=app_list
+                "Bank App", options=app_list, default=app_list,
+                help="Choose one or more apps/banks."
             )
 
-            # 2) Time Period slider (now based on period_month)
-            min_date = df["period_month"].min()
-            max_date = df["period_month"].max()
+            # 2) Time Period slider 
+            min_date = df_tab1["period_month"].min()
+            max_date = df_tab1["period_month"].max()
             default_start = max(min_date, max_date - pd.DateOffset(years=4))
             start_date, end_date = cols[1].slider(
                 "Time Period",
@@ -212,21 +249,23 @@ def main():
                 max_value=max_date.to_pydatetime(),
                 value=(default_start.to_pydatetime(), max_date.to_pydatetime()),
                 format="YYYY-MM-DD",
+                help="Filter by review date."
             )
 
-            # 3) Time Unit (we rebin from monthly)
+            # 3) Time Unit 
             unit = cols[2].selectbox(
                 "Time Unit",
                 options=["Month", "Quarter", "Semester", "Year"],
                 index=1,
+                help="Select preferred time unit: Month, Quarter, Semester or Year."
             )
 
         # Apply filters on the monthly DF
         mask = (
-            df["period_month"].between(pd.Timestamp(start_date), pd.Timestamp(end_date))
-            & (df["app"].isin(selected_apps) if selected_apps else True)
+            df_tab1["period_month"].between(pd.Timestamp(start_date), pd.Timestamp(end_date))
+            & (df_tab1["app"].isin(selected_apps) if selected_apps else True)
         )
-        df_f = df.loc[mask].copy()
+        df_f = df_tab1.loc[mask].copy()
 
         if df_f.empty:
             st.info("No data for the selected filters.")
@@ -280,31 +319,152 @@ def main():
 
         st.altair_chart(base, use_container_width=True)
 
-
+        st.markdown("---")
+        st.markdown(
+            """
+            <small>
+            <strong>Data source:</strong> Google Play Store reviews. <strong>Last Update:</strong> 4th September 2025.<br/>
+            <strong>Notes:</strong> Ratings for each time unit are simple averages of the monthly averages (not weighted by review counts).
+            </small>
+            """,
+            unsafe_allow_html=True,
+        )
+    
     # -------------------------------
-    # Tab 2 & 3 placeholders
+    # TAB 2: TOPIC MODELING
     # -------------------------------
+    
     with topics_tab:
-        st.subheader("Find what are the main topics mentioned in reviews")
-        st.info("🚧 Work in progress")
+        st.subheader("Key topics mentioned in reviews")
+    
+        # --- Filters row ---------------------------
+        with st.container():
+            cols = st.columns([2, 2, 2])
+
+            # i) Bank App select
+            apps = sorted(df_tab2[APP_COL].dropna().unique().tolist())
+            sel_apps = cols[0].multiselect(
+                "Bank App",
+                options=apps,
+                default=apps,
+                help="Choose one or more apps/banks."
+            )
+        
+            # ii) Time Period slider
+            min_dt = pd.to_datetime(df_tab2[DATE_COL].min())
+            max_dt = pd.to_datetime(df_tab2[DATE_COL].max())
+            default_start = max(min_dt, max_dt - pd.DateOffset(years=4))
+            start_dt, end_dt = cols[1].slider(
+                "Time Period",
+                min_value=min_dt.to_pydatetime(),
+                max_value=max_dt.to_pydatetime(),
+                value=(default_start.to_pydatetime(), max_dt.to_pydatetime()),
+                format="YYYY-MM-DD",
+                help="Filter by review date."
+            )
+    
+            # iii) Type of reviews
+            review_type = cols[2].radio(
+                "Type of reviews",
+                options=["Positive", "Negative"],
+                index=1,           # default Negative
+                horizontal=True,
+                help="Select either 'Positive' or 'Negative' reviews."
+            )
+        
+        # Decide which topic column + scores to use
+        topic_col = TOPIC_POS_COL if review_type == "Positive" else TOPIC_NEG_COL
+        valid_scores = {4, 5} if review_type == "Positive" else {1, 2}
+    
+        # --- Lightweight filtering ------------------------------
+        mask = (
+            df_tab2[APP_COL].isin(sel_apps)
+            & df_tab2[SCORE_COL].isin(valid_scores)
+            & df_tab2[DATE_COL].between(pd.Timestamp(start_dt), pd.Timestamp(end_dt))
+            & df_tab2[topic_col].notna()
+            & (df_tab2[topic_col] != UNDEFINED_LABEL)
+        )
+        
+        view = df_tab2.loc[mask, [APP_COL, topic_col]]
+        if view.empty:
+            st.info("No reviews match the current filters.")
+            st.stop()
+    
+        # --- Prepare topic order & colors -----------------------------------------
+        # Keep a stable topic order: use our color dict order where available, then any extras
+        topics_in_view = view[topic_col].cat.remove_unused_categories().cat.categories.tolist()
+        ordered_topics = topics_in_view
+
+        # Build a deterministic color map for the topics we actually have
+        color_map = {t: COLOR_CYCLE[i % len(COLOR_CYCLE)] for i, t in enumerate(ordered_topics)}
+        
+        # Aggregate to proportions per app
+        ct = (view.groupby([APP_COL, topic_col], observed=True)
+                  .size()
+                  .rename("n")
+                  .reset_index())
+    
+        # Ensure every (app, topic) pair exists -> aligned stacks
+        all_index = pd.MultiIndex.from_product([sel_apps, ordered_topics], names=[APP_COL, topic_col])
+        ct = ct.set_index([APP_COL, topic_col]).reindex(all_index, fill_value=0).reset_index()
+        
+        totals = ct.groupby(APP_COL, as_index=False)["n"].sum().rename(columns={"n":"total_n"})
+        ct = ct.merge(totals, on=APP_COL, how="left")
+        ct["pct"] = np.where(ct["total_n"]>0, ct["n"]/ct["total_n"]*100.0, 0.0)
+        
+        x_order = sel_apps
+        order_map = {a:i for i,a in enumerate(x_order)}
+    
+        # --- Build figure (stacked 100%) ------------------------------------------
+        fig = go.Figure()
+        for topic in ordered_topics:
+            df_t = ct[ct[topic_col]==topic].sort_values(APP_COL, key=lambda s: s.map(order_map))
+            fig.add_trace(
+                go.Bar(
+                    x=df_t[APP_COL],
+                    y=df_t["pct"],
+                    name=topic,
+                    marker_color=color_map[topic],
+                    text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=4, ""),
+                    textposition="inside",
+                    hovertemplate=(
+                        "<b>%{x}</b><br>"
+                        + topic + ": %{y:.1f}%<br>"
+                        + "Count: %{customdata}"
+                        + "<extra></extra>"
+                    ),
+                    customdata=df_t["n"],
+                )
+            )
+        
+        for app, total in totals.set_index(APP_COL).reindex(x_order)["total_n"].items():
+            fig.add_annotation(x=app, y=100, yshift=16, text=f"n={int(total)}", showarrow=False, font=dict(size=11))
+        
+        fig.update_layout(
+            barmode="stack",
+            yaxis=dict(title="Proportion of reviews", range=[0, 100], ticksuffix="%", showgrid=True),
+            xaxis=dict(title="App / Bank"),
+            legend=dict(title="Topic", orientation="v", x=1.02, y=1.0, bgcolor="rgba(255,255,255,0.15)"),
+            margin=dict(l=20, r=160, t=30, b=60),
+            height=520,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+        # Footnote / notes
+        st.caption(
+            "Notes: Proportions are within each app (stacked to 100%). "
+            "‘Positive’ uses scores 4–5 and ‘Negative’ uses scores 1–2. "
+            "Reviews that were not possible to allocate to a specific topic were removed from this analysis."
+        )  
+    
+    # -------------------------------
+    # Tab 3 placeholder
+    # -------------------------------
 
     with reviews_tab:
         st.subheader("Deep dive on real reviews")
         st.info("🚧 Work in progress")
 
-    # -------------------------------
-    # Footnote
-    # ------------------------------- 
-    st.markdown("---")
-    st.markdown(
-        """
-        <small>
-        <strong>Data source:</strong> Google Play Store reviews. Last update: 04/09/2025.<br/>
-        <strong>Notes:</strong> Ratings are simple averages for each time period.
-        </small>
-        """,
-        unsafe_allow_html=True,
-    )
 
 if __name__ == "__main__":
     main()
