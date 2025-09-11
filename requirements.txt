@@ -6,3 +6,4 @@ huggingface_hub
 pyarrow>=15.0
 psutil
 requests
+plotly
