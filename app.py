@@ -347,7 +347,8 @@ def main():
                 "Bank App",
                 options=apps,
                 default=apps,
-                help="Choose one or more apps/banks."
+                help="Choose one or more apps/banks.",
+                key="t2_bank_app"
             )
         
             # ii) Time Period slider
@@ -360,7 +361,8 @@ def main():
                 max_value=max_dt.to_pydatetime(),
                 value=(default_start.to_pydatetime(), max_dt.to_pydatetime()),
                 format="YYYY-MM-DD",
-                help="Filter by review date."
+                help="Filter by review date.",
+                key="t2_time_period"
             )
     
             # iii) Type of reviews
@@ -369,7 +371,8 @@ def main():
                 options=["Positive", "Negative"],
                 index=1,           # default Negative
                 horizontal=True,
-                help="Select either 'Positive' or 'Negative' reviews."
+                help="Select either 'Positive' or 'Negative' reviews.",
+                key="t2_review_type"
             )
         
         # Decide which topic column + scores to use
