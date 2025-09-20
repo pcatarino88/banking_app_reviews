@@ -450,7 +450,6 @@ def main():
         
         fig.update_layout(
             barmode="stack",
-            yaxis=dict(title="App / Bank"),
             xaxis=dict(title="Proportion of reviews", range=[0, 100], ticksuffix="%", showgrid=True),
             legend=dict(
                 orientation="h",
