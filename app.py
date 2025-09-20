@@ -424,8 +424,9 @@ def main():
             df_t = ct[ct[topic_col]==topic].sort_values(APP_COL, key=lambda s: s.map(order_map))
             fig.add_trace(
                 go.Bar(
-                    x=df_t[APP_COL],
-                    y=df_t["pct"],
+                    x=df_t["pct"],
+                    y=df_t[APP_COL],
+                    orientation = 'h',
                     name=topic,
                     marker_color=color_map[topic],
                     text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=4, ""),
@@ -441,12 +442,16 @@ def main():
             )
         
         for app, total in totals.set_index(APP_COL).reindex(x_order)["total_n"].items():
-            fig.add_annotation(x=app, y=100, yshift=16, text=f"n={int(total)}", showarrow=False, font=dict(size=11))
+                fig.add_annotation(
+                    x=100, y=app, xshift=8,
+                    text=f"n={int(total)}",
+                    showarrow=False, font=dict(size=11)
+                )
         
         fig.update_layout(
             barmode="stack",
-            yaxis=dict(title="Proportion of reviews", range=[0, 100], ticksuffix="%", showgrid=True),
-            xaxis=dict(title="App / Bank"),
+            yaxis=dict(title="App / Bank"),
+            xaxis=dict(title="Proportion of reviews", range=[0, 100], ticksuffix="%", showgrid=True),
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
@@ -455,7 +460,7 @@ def main():
                 x=0.5,
                 bgcolor="rgba(255,255,255,0.15)"
             ),
-            margin=dict(l=20, r=160, t=30, b=60),
+            margin=dict(l=20, r=20, t=30, b=60),
             height=520,
         )
         st.plotly_chart(fig, use_container_width=True)
