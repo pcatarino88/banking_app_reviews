@@ -447,7 +447,14 @@ def main():
             barmode="stack",
             yaxis=dict(title="Proportion of reviews", range=[0, 100], ticksuffix="%", showgrid=True),
             xaxis=dict(title="App / Bank"),
-            legend=dict(title="Topic", orientation="v", x=1.02, y=1.0, bgcolor="rgba(255,255,255,0.15)"),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.3,
+                xanchor="center",
+                x=0.5,
+                bgcolor="rgba(255,255,255,0.15)"
+            ),
             margin=dict(l=20, r=160, t=30, b=60),
             height=520,
         )
