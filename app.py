@@ -429,8 +429,9 @@ def main():
                     orientation = 'h',
                     name=topic,
                     marker_color=color_map[topic],
-                    text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=4, ""),
+                    text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=5, ""),
                     textposition="inside",
+                    insidetextanchor="middle",
                     hovertemplate=(
                         "<b>%{x}</b><br>"
                         + topic + ": %{y:.1f}%<br>"
@@ -454,7 +455,7 @@ def main():
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
-                y=-0.3,
+                y=-0.5,
                 xanchor="center",
                 x=0.5,
                 bgcolor="rgba(255,255,255,0.15)"
