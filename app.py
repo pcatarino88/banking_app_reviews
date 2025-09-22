@@ -249,7 +249,7 @@ def main():
     with app_tab:
 
         with st.container():
-            cols = st.columns([2, 2, 2])
+            cols = st.columns([2, 0.1, 2, 0.1, 2])
 
             # 1) Bank App filter
             app_list = sorted(df_tab1["app"].dropna().unique().tolist())
@@ -262,7 +262,7 @@ def main():
             min_date = df_tab1["period_month"].min()
             max_date = df_tab1["period_month"].max()
             default_start = max(min_date, max_date - pd.DateOffset(years=4))
-            start_date, end_date = cols[1].slider(
+            start_date, end_date = cols[2].slider(
                 "Time Period",
                 min_value=min_date.to_pydatetime(),
                 max_value=max_date.to_pydatetime(),
@@ -272,7 +272,7 @@ def main():
             )
 
             # 3) Time Unit 
-            unit = cols[2].selectbox(
+            unit = cols[4].selectbox(
                 "Time Unit",
                 options=["Month", "Quarter", "Semester", "Year"],
                 index=1,
@@ -299,9 +299,9 @@ def main():
             (agg["avg_score"] * agg["n_reviews"]).sum() / max(total_reviews, 1)
         )
 
-        k1, k2 = st.columns(2)
-        k1.metric("Reviews (filtered)", f"{total_reviews:,}")
-        k2.metric("Avg. rating", f"{weighted_avg:.2f} / 5")
+        k1, k2, k3, k4 = st.columns(4)
+        k2.metric("Reviews (filtered)", f"{total_reviews:,}")
+        k3.metric("Avg. rating", f"{weighted_avg:.2f} / 5")
         
         # Chart (Altair)
         palette = build_brand_palette(sorted(df_f["app"].dropna().unique().tolist()))
