@@ -215,7 +215,7 @@ df_tab2 = load_tab2_frame()
 def main():
     show_memory_usage()
 
-    st.title("📱 Banking App Reviews")
+    st.title("📱 Bank App Reviews")
     st.caption("Interactive analysis of app store ratings and reviews.")
 
     # Tabs
@@ -227,7 +227,6 @@ def main():
     # TAB 1: APP RATINGS (monthly-based)
     # -------------------------------
     with app_tab:
-        st.subheader("Evolution of Apps' rating")
 
         with st.container():
             cols = st.columns([2, 2, 2])
@@ -335,8 +334,7 @@ def main():
     # -------------------------------
     
     with topics_tab:
-        st.subheader("Key topics mentioned in reviews")
-    
+   
         # --- Filters row ---------------------------
         with st.container():
             cols = st.columns([2, 2, 2])
