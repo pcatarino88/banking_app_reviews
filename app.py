@@ -275,15 +275,13 @@ def main():
 
         # KPIs (use review counts from agg and weighted mean for rating)
         total_reviews = int(agg["n_reviews"].sum())
-        apps_count = len(selected_apps)
         weighted_avg = (
             (agg["avg_score"] * agg["n_reviews"]).sum() / max(total_reviews, 1)
         )
 
-        k1, k2, k3 = st.columns(3)
+        k1, k2 = st.columns(2)
         k1.metric("Reviews (filtered)", f"{total_reviews:,}")
-        k2.metric("Apps selected", f"{apps_count}")
-        k3.metric("Avg. rating", f"{weighted_avg:.2f} / 5")
+        k2.metric("Avg. rating", f"{weighted_avg:.2f} / 5")
         
         # Chart (Altair)
         palette = build_brand_palette(sorted(df_f["app"].dropna().unique().tolist()))
@@ -455,7 +453,8 @@ def main():
                 yanchor="bottom", y=-0.5,
                 xanchor="center", x=0.5,
                 traceorder="normal",
-                bgcolor="rgba(255,255,255,0.15)"
+                bgcolor="rgba(255,255,255,0.15)",
+                font_size=9
             ),
             margin=dict(l=20, r=20, t=30, b=60),
             height=520,
