@@ -442,22 +442,21 @@ def main():
                 )
             )
         
-        for app, total in totals.set_index(APP_COL).reindex(x_order)["total_n"].items():
-                fig.add_annotation(
-                    x=100, y=app, xshift=8,
-                    text=f"n={int(total)}",
-                    showarrow=False, font=dict(size=11)
-                )
+        #for app, total in totals.set_index(APP_COL).reindex(x_order)["total_n"].items():
+                #fig.add_annotation(
+                    #x=100, y=app, xshift=8,
+                    #text=f"n={int(total)}",
+                    #showarrow=False, font=dict(size=11)
+                #)
         
         fig.update_layout(
             barmode="stack",
             xaxis=dict(title="Proportion of reviews", range=[0, 100], ticksuffix="%", showgrid=True),
             legend=dict(
                 orientation="h",
-                yanchor="bottom",
-                y=-0.5,
-                xanchor="center",
-                x=0.5,
+                yanchor="bottom", y=-0.5,
+                xanchor="center", x=0.5,
+                traceorder="normal",
                 bgcolor="rgba(255,255,255,0.15)"
             ),
             margin=dict(l=20, r=20, t=30, b=60),
