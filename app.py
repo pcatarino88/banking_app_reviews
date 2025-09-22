@@ -16,6 +16,7 @@ import psutil  # memory widget
 # -------------------------------
 # I. Page config
 # -------------------------------
+
 st.set_page_config(
     page_title="Banking App Reviews",
     page_icon="📱",
@@ -30,7 +31,26 @@ st.markdown(
         padding-top: 1.5rem;
         padding-bottom: 1rem;
     }
-    </style>
+    /* Adjust st.mnultiselect items size and font*/
+    .stMultiSelect [data-baseweb="tag"],
+    [data-baseweb="tag"] {
+        font-size: 12px !important;     /* ↓ make text smaller */
+        line-height: 1.1 !important;
+        padding: 2px 6px !important;     /* tighter chip */
+    }
+    .stMultiSelect [data-baseweb="tag"] span {
+        font-size: 12px !important;      /* make inner span smaller too */
+    }
+    /* The “x” icon size */
+    .stMultiSelect [data-baseweb="tag"] svg {
+        width: 12px !important;
+        height: 12px !important;
+    }
+    
+    /* dropdown option size */
+    .stMultiSelect [data-baseweb="list"] div[role="option"] {
+        font-size: 13px !important;
+    }
     """,
     unsafe_allow_html=True
 )
@@ -216,7 +236,7 @@ def main():
     show_memory_usage()
 
     st.title("📱 App Reviews")
-    st.caption("Interactive analysis of app store ratings and reviews from UK banks")
+    st.caption("Interactive analysis of App store reviews of UK banks")
 
     # Tabs
     app_tab, topics_tab, reviews_tab = st.tabs(
@@ -227,26 +247,6 @@ def main():
     # TAB 1: APP RATINGS (monthly-based)
     # -------------------------------
     with app_tab:
-        
-        # Make font of multiseleect tags (i.e., bank apps names) smaller
-        st.markdown(
-            """
-            <style>
-            /* Make font inside multiselect tags smaller */
-            div[data-baseweb="tag"] {
-                font-size: 8px !important;   /* adjust down from default ~16px */
-                padding: 2px 6px !important;  /* tighter padding */
-            }
-            
-            /* Make the 'x' (remove button) smaller */
-            div[data-baseweb="tag"] svg {
-                width: 14px !important;
-                height: 14px !important;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
 
         with st.container():
             cols = st.columns([2, 2, 2])
@@ -477,7 +477,7 @@ def main():
                 bgcolor="rgba(255,255,255,0.15)",
                 font_size=9.5
             ),
-            margin=dict(l=20, r=20, t=30, b=60),
+            margin=dict(l=10, r=10, t=30, b=60),
             height=520,
         )
         st.plotly_chart(fig, use_container_width=True)
