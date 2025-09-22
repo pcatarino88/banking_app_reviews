@@ -215,8 +215,8 @@ df_tab2 = load_tab2_frame()
 def main():
     show_memory_usage()
 
-    st.title("📱 Bank App Reviews")
-    st.caption("Interactive analysis of app store ratings and reviews.")
+    st.title("📱 App Reviews")
+    st.caption("Interactive analysis of app store ratings and reviews from UK banks")
 
     # Tabs
     app_tab, topics_tab, reviews_tab = st.tabs(
@@ -227,6 +227,25 @@ def main():
     # TAB 1: APP RATINGS (monthly-based)
     # -------------------------------
     with app_tab:
+        # Make font of multiseleect tags (i.e., bank apps names) smaller
+        st.markdown(
+            """
+            <style>
+            /* Make font inside multiselect tags smaller */
+            div[data-baseweb="tag"] {
+                font-size: 8px !important;   /* adjust down from default ~16px */
+                padding: 2px 6px !important;  /* tighter padding */
+            }
+            
+            /* Make the 'x' (remove button) smaller */
+            div[data-baseweb="tag"] svg {
+                width: 14px !important;
+                height: 14px !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
 
         with st.container():
             cols = st.columns([2, 2, 2])
@@ -425,9 +444,10 @@ def main():
                     orientation = 'h',
                     name=topic,
                     marker_color=color_map[topic],
-                    text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=5, ""),
+                    text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=7, ""),
                     textposition="inside",
                     insidetextanchor="middle",
+                    textfont=dict(size=10, color="white"),
                     hovertemplate=(
                         "<b>%{x}</b><br>"
                         + topic + ": %{y:.1f}%<br>"
@@ -450,11 +470,11 @@ def main():
             xaxis=dict(title="Proportion of reviews", range=[0, 100], ticksuffix="%", showgrid=True),
             legend=dict(
                 orientation="h",
-                yanchor="bottom", y=-0.5,
+                yanchor="bottom", y=-0.4,
                 xanchor="center", x=0.5,
                 traceorder="normal",
                 bgcolor="rgba(255,255,255,0.15)",
-                font_size=9
+                font_size=9.5
             ),
             margin=dict(l=20, r=20, t=30, b=60),
             height=520,
