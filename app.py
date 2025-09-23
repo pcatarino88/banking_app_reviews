@@ -390,7 +390,10 @@ def main():
                 xanchor="center", x=0.5,
                 traceorder="normal",
                 bgcolor="rgba(255,255,255,0.15)",
-                font_size=9.5
+                font_size= 10,
+                itemsizing="constant",        # makes marker a fixed size
+                itemwidth=30,                 # width reserved for marker + spacing
+                tracegroupgap=0 
             ),
             margin=dict(l=10, r=10, t=30, b=60),
             height=520,
