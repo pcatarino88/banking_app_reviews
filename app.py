@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from datetime import datetime
 import io
 import os
@@ -11,7 +10,6 @@ import streamlit as st
 import altair as alt
 import plotly.graph_objects as go
 from reviews_core import get_sample
-
 import psutil  # memory widget
 
 # -------------------------------
@@ -226,7 +224,7 @@ def main():
                 title="Time",
                 axis=alt.Axis(
                     format="%b/%y",        # e.g., Oct/24
-                    labelAngle=0,          # optional: keep labels horizontal
+                    labelAngle=0,          # keep labels horizontal
                     labelOverlap=True
                 ),
             ),
@@ -236,7 +234,7 @@ def main():
                 title="App",
                 sort=legend_order,
                 scale=alt.Scale(domain=legend_order, range=color_range),
-                legend=alt.Legend(title="App",labelFontSize=12,titleFontSize=13,symbolSize=80),
+                legend=alt.Legend(title="App",labelFontSize=12,titleFontSize=13,symbolSize=80,orient='top'),
             ),
             tooltip=[
                 alt.Tooltip("period:T", title="Period"),
@@ -244,6 +242,8 @@ def main():
                 alt.Tooltip("avg_score:Q", title="Avg. rating", format=".2f"),
             ],
         ).properties(height=420)
+
+        st.write("")
 
         st.altair_chart(base, use_container_width=True)
 
