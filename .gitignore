@@ -1,3 +1,16 @@
-assets/df_final.parquet
-assets/*.parquet
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- Virtual environments ----
+.env
+.venv/
+env/
+venv/
+*.egg-info/
+
+# ---- OS / editor junk ----
+.DS_Store
+Thumbs.db
+
+# ---- Streamlit secrets (if you add them later) ----
 .streamlit/secrets.toml

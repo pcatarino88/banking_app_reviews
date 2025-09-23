@@ -4,12 +4,14 @@ from datetime import datetime
 import io
 import os
 import requests
+import re
 import numpy as np
 import pandas as pd
 import streamlit as st
 import altair as alt
 from huggingface_hub import hf_hub_download
 import plotly.graph_objects as go
+from reviews_core import get_sample
 
 import psutil  # memory widget
 
@@ -62,6 +64,11 @@ def show_memory_usage():
 # -------------------------------
 # II. Helpers
 # -------------------------------
+
+@st.cache_data  #ALREADY BEING USED FOR TAB3 --> EXPAND TO OTHER TABS
+def load_df(path) -> pd.DataFrame:
+    return pd.read_parquet(path)
+
 
 def clean_monthly(df: pd.DataFrame) -> pd.DataFrame:
     """Ensure monthly schema + dtypes."""
@@ -189,7 +196,6 @@ DEFAULT_CYCLE = [
     "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC",
 ]
 
-# === CONFIG FOR TAB 2 ===========================
 
 @st.cache_data(show_spinner=False)
 def load_tab2_frame() -> pd.DataFrame:
@@ -240,7 +246,7 @@ def main():
 
     # Tabs
     app_tab, topics_tab, reviews_tab = st.tabs(
-        ["App Ratings", "Key Topics", "Search Reviews (WiP)"]
+        ["App Ratings", "Key Topics", "Search Reviews"]
     )
     
     # -------------------------------
@@ -292,6 +298,9 @@ def main():
 
         # Rebin Month -> selected unit (keeps table small)
         agg = rebin_from_month(df_f, unit)
+
+        # --- BLANK SPACING
+        st.write("")     
 
         # KPIs (use review counts from agg and weighted mean for rating)
         total_reviews = int(agg["n_reviews"].sum())
@@ -355,8 +364,7 @@ def main():
    
         # --- Filters row ---------------------------
         with st.container():
-            cols = st.columns([2, 2, 2])
-
+            cols = st.columns([2, 0.1, 2, 0.1, 2])
             # i) Bank App select
             apps = sorted(df_tab2[APP_COL].dropna().unique().tolist())
             sel_apps = cols[0].multiselect(
@@ -371,7 +379,7 @@ def main():
             min_dt = pd.to_datetime(df_tab2[DATE_COL].min())
             max_dt = pd.to_datetime(df_tab2[DATE_COL].max())
             default_start = max(min_dt, max_dt - pd.DateOffset(years=4))
-            start_dt, end_dt = cols[1].slider(
+            start_dt, end_dt = cols[2].slider(
                 "Time Period",
                 min_value=min_dt.to_pydatetime(),
                 max_value=max_dt.to_pydatetime(),
@@ -382,7 +390,7 @@ def main():
             )
     
             # iii) Type of reviews
-            review_type = cols[2].radio(
+            review_type = cols[4].radio(
                 "Type of reviews",
                 options=["Positive", "Negative"],
                 index=1,           # default Negative
@@ -450,21 +458,13 @@ def main():
                     insidetextanchor="middle",
                     textfont=dict(size=10, color="white"),
                     hovertemplate=(
-                        "<b>%{x}</b><br>"
-                        + topic + ": %{y:.1f}%<br>"
+                        topic + ": %{x:.1f}%<br>"
                         + "Count: %{customdata}"
                         + "<extra></extra>"
                     ),
                     customdata=df_t["n"],
                 )
             )
-        
-        #for app, total in totals.set_index(APP_COL).reindex(x_order)["total_n"].items():
-                #fig.add_annotation(
-                    #x=100, y=app, xshift=8,
-                    #text=f"n={int(total)}",
-                    #showarrow=False, font=dict(size=11)
-                #)
         
         fig.update_layout(
             barmode="stack",
@@ -494,8 +494,118 @@ def main():
     # -------------------------------
 
     with reviews_tab:
-        st.subheader("Deep dive on real reviews")
-        st.info("🚧 Work in progress")
+
+        df_tab3 = load_df("assets/df_tab3.parquet")
+       
+        # --- Filters row ---------------------------
+        c1, c2, c3, c4, c5 = st.columns([1, 0.1, 2, 0.1, 2])
+
+        # Type of review - default 'Negative'
+        with c1:
+            sentiment = st.segmented_control(
+                "Type of reviews",
+                ["Negative", "Positive"],
+                default = "Negative"
+            )
+      
+        # Bank App select (optional)
+        with c3:
+            app_options = ["All"] + sorted([a for a in df_tab3["app"].dropna().astype(str).unique()])
+            app_sel = st.selectbox("Bank App (optional)", app_options, index=0)
+        
+        # Topic select (optional)
+        with c5:
+            topic_options = ["All"] + sorted([t for t in df_tab3["topic_label_SEG"].dropna().astype(str).unique()])
+            topic_sel = st.selectbox("Topic (optional)", topic_options, index=0)
+
+        st.write("")
+
+        # --- Search row ---------------------------
+        c6, c7, c8 = st.columns([4, 0.1, 1.5])
+
+        with c6:
+            words_raw = st.text_input(
+                "Words to search (comma / semicolon / newline separated)",
+                placeholder="e.g., fees, login, customer service"
+            )
+        with c8:
+            n_reviews = st.number_input("Number of reviews", min_value=1, max_value=10, value=5, step=1, help="Select number reviews to display" )
+
+        st.write("")
+
+        # --- Action button ---------------------------------------------------------
+        do_search = st.button("Search Reviews", type="primary")
+            
+        if do_search:
+            df_filtered = df_tab3.copy()
+    
+            # Sentiment to score buckets
+            if sentiment == "Negative":
+                df_filtered = df_filtered[df_filtered["score"].isin([1, 2])]
+            else:  # Positive
+                df_filtered = df_filtered[df_filtered["score"].isin([4, 5])]
+    
+            # App filter
+            if app_sel != "All":
+                df_filtered = df_filtered[df_filtered["app"].astype(str) == str(app_sel)]
+    
+            # Topic filter
+            if topic_sel != "All":
+                df_filtered = df_filtered[df_filtered["topic_label_SEG"].astype(str) == str(topic_sel)]
+    
+            # Words filter (supports multiple terms)
+            words = [w.strip() for w in re.split(r"[,\n;]+", words_raw) if w.strip()]
+            if words:
+                if isinstance(words, str):
+                    words = [words]  
+                
+                for w in words:
+                    pattern = r"\b" + re.escape(w) + r"\b"
+                    mask = df_filtered['review_text'].astype(str).str.contains(pattern, case=False, na=False, regex=True)
+                    df_filtered = df_filtered[mask]
+    
+            # Safety: if nothing left, message and stop
+            if df_filtered.empty:
+                st.info("No reviews found for the selected filters / words.")
+                return
+    
+            # --- Call your sampler (filters already applied so pass None for function parameters) -----------------------------
+            try:
+                out = get_sample(
+                    df=df_filtered,
+                    app=None,
+                    words=None,
+                    score=None,
+                    topics=None,
+                    n=n_reviews,
+                    seed=st.session_state.get("seed", None),
+                )
+            except Exception as e:
+                st.error(f"Error while sampling reviews: {e}")
+                return
+    
+            if out.empty:
+                st.info("No reviews returned by the sampler with the current settings.")
+                return
+               
+            st.caption(f"Showing up to {n_reviews} reviews.")
+            for i, r in out.iterrows():
+                with st.container(border=True):
+                    c1, c2, c3 = st.columns([1, 1, 2])
+                    c1.markdown(f"**App:** {r['app']}")
+                    c2.markdown(f"**Score:** {r['score']}")
+                    c3.markdown(f"**Date:** {r['review_date']}")
+                    st.markdown(f"**Topic:** {r.get('topic_label_SEG', r.get('topic_label_SEL','—'))}")
+                    st.markdown(r["review_text"])  # full text, wrapped
+                #st.write("")  # small spacer)
+    
+            # Optional: quick export
+            st.download_button(
+                "Download CSV",
+                data=out.to_csv(index=False).encode("utf-8"),
+                file_name="review_samples.csv",
+                mime="text/csv",
+            )
 
 
 if __name__ == "__main__":
