@@ -133,6 +133,13 @@ COLOR_CYCLE = [
 ]
 
 
+NEGATIVE_TOPICS = ["Login & Security","Payments & Cards","Updates & Crashes",
+                   "Transfers & Transact","Interface & Fees","Customer Support"]    
+
+
+POSITIVE_TOPICS = ["Usability","Features & Security","Transactions & Money Mgmt",
+                   "Investments","Cards & Travel","Updates & Support"]
+
 # -------------------------------
 # MAIN
 # -------------------------------
@@ -147,29 +154,33 @@ def main():
         ["App Ratings", "Key Topics", "Search Reviews"]
     )
     
-    # -------------------------------
+    # ===============================
     # TAB 1: APP RATINGS 
-    # -------------------------------
+    # ===============================
     with app_tab:
         
         # LOAD DF_TAB1
         df_tab1= load_df("assets/df_tab1.parquet")        
 
-        with st.container():
-            cols = st.columns([2, 0.1, 2, 0.1, 2])
+        # ----------------------------------
+        # FILTERS 
+        # ----------------------------------
+        c1, c2, c3, c4, c5 = st.columns([2, 0.1, 2, 0.1, 1])
 
-            # 1) Bank App filter
+        # Bank Filter
+        with c1:
             app_list = sorted(df_tab1["app"].dropna().unique().tolist())
-            selected_apps = cols[0].multiselect(
+            selected_apps = st.multiselect(
                 "Bank App", options=app_list, default=app_list,
                 help="Choose one or more apps/banks."
             )
 
-            # 2) Time Period slider 
+        # Time Period slider
+        with c3: 
             min_date = df_tab1["period_month"].min()
             max_date = df_tab1["period_month"].max()
             default_start = max(min_date, max_date - pd.DateOffset(years=4))
-            start_date, end_date = cols[2].slider(
+            start_date, end_date = st.slider(
                 "Time Period",
                 min_value=min_date.to_pydatetime(),
                 max_value=max_date.to_pydatetime(),
@@ -178,8 +189,9 @@ def main():
                 help="Filter by review date."
             )
 
-            # 3) Time Unit 
-            unit = cols[4].selectbox(
+        # Time Unit 
+        with c5:
+            unit = st.selectbox(
                 "Time Unit",
                 options=["Month", "Quarter", "Semester", "Year"],
                 index=1,
@@ -255,16 +267,19 @@ def main():
 
         st.altair_chart(base, use_container_width=True)
 
-        st.markdown("---")
+        # ------------------
+        # Tab 1 Footer
+        # ------------------
+        st.write("")
         st.markdown(
             """
-            <small>
-            <strong>Data source:</strong> Google Play Store reviews. <strong>Last Update:</strong> 4th September 2025.<br/>
-            <strong>Notes:</strong> Ratings for each time unit are simple averages of the monthly averages (not weighted by review counts).
-            </small>
+        <div style="text-align:left; color: gray; font-size: 10px; margin-left:10px; margin-top:5px;">
+            Note: Ratings for each time unit are simple averages of the monthly averages - i.e., not weighted by review counts.
+            </a><br>
+        </div>
             """,
-            unsafe_allow_html=True,
-        )
+            unsafe_allow_html=True
+        )  
     
     # -------------------------------
     # TAB 2: TOPIC MODELING
@@ -444,7 +459,11 @@ def main():
         
         # Topic select (optional)
         with c5:
-            topic_options = ["All"] + sorted([t for t in df_tab3["topic_label_SEG"].dropna().astype(str).unique()])
+            if sentiment_t3 == "Negative":
+                topic_options = ["All"] + NEGATIVE_TOPICS
+            else:
+                topic_options = ["All"] + POSITIVE_TOPICS
+
             topic_sel = st.selectbox("Topic (optional)", topic_options, index=0)
 
         st.write("")
@@ -535,6 +554,35 @@ def main():
                 file_name="review_samples.csv",
                 mime="text/csv",
             )
+
+
+    # ================================================
+    # APP FOOTER
+    # ================================================
+
+    # Add spacer
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <hr style="margin: 5px 0 0 0; border: none; border-top: 1px solid #ddd;">
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Footer note
+    st.markdown(
+        """
+    <div style="text-align:left; color: gray; font-size: 12px; margin-left:10px; margin-top:0px;">
+        Developed by 
+        <a href="https://www.linkedin.com/in/pedrofcatarino/" target="_blank"
+        style="color:#0a66c2; text-decoration:underline;">
+        Pedro Catarino
+        </a><br>
+        Data source: Google Play Store reviews. Last Update: 4th September 2025.
+    </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 if __name__ == "__main__":
