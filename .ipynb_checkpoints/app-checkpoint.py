@@ -54,9 +54,10 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-def show_memory_usage():
-    p = psutil.Process(os.getpid())
-    st.sidebar.caption(f"RAM used: {p.memory_info().rss / 1024**2:.0f} MB")
+def show_memory_usage(show = True):
+    if show == True:
+        p = psutil.Process(os.getpid())
+        st.sidebar.caption(f"RAM used: {p.memory_info().rss / 1024**2:.0f} MB")
 
 # -------------------------------
 # II. Helpers
@@ -136,7 +137,7 @@ COLOR_CYCLE = [
 # MAIN
 # -------------------------------
 def main():
-    show_memory_usage()
+    show_memory_usage(show=False)
 
     st.title("📱 App Reviews")
     st.caption("Interactive analysis of App store reviews of UK banks")
@@ -234,7 +235,14 @@ def main():
                 title="App",
                 sort=legend_order,
                 scale=alt.Scale(domain=legend_order, range=color_range),
-                legend=alt.Legend(title="App",labelFontSize=12,titleFontSize=13,symbolSize=80,orient='top'),
+                legend=alt.Legend(
+                    title="App",
+                    orient='right',
+                    #direction = "horizontal",
+                    labelFontSize=12,
+                    titleFontSize=13,
+                    padding=7, # gap between legend and chart
+                    symbolSize=80),
             ),
             tooltip=[
                 alt.Tooltip("period:T", title="Period"),
@@ -395,7 +403,7 @@ def main():
                 itemwidth=30,                 # width reserved for marker + spacing
                 tracegroupgap=0 
             ),
-            margin=dict(l=10, r=10, t=30, b=60),
+            margin=dict(l=5, r=5, t=30, b=60),
             height=520,
         )
         st.plotly_chart(fig, use_container_width=True)
