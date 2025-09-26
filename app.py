@@ -140,450 +140,468 @@ NEGATIVE_TOPICS = ["Login & Security","Payments & Cards","Updates & Crashes",
 POSITIVE_TOPICS = ["Usability","Features & Security","Transactions & Money Mgmt",
                    "Investments","Cards & Travel","Updates & Support"]
 
+
+
 # -------------------------------
 # MAIN
 # -------------------------------
-def main():
-    show_memory_usage(show=False)
 
-    st.title("📱 App Reviews")
-    st.caption("Interactive analysis of App store reviews of UK banks")
+st.title("📱 App Reviews")
+st.caption("Interactive analysis of App store reviews of UK banks")
 
-    # Tabs
-    app_tab, topics_tab, reviews_tab = st.tabs(
-        ["App Ratings", "Key Topics", "Search Reviews"]
+# Tabs
+app_tab, topics_tab, reviews_tab = st.tabs(["App Ratings", "Key Topics", "Search Reviews"])
+
+# ===============================
+# TAB 1: APP RATINGS 
+# ===============================
+with app_tab:
+
+    # LOAD DF_TAB1
+    df_tab1= load_df("assets/df_tab1.parquet")        
+
+    # ----------------------------------
+    # FILTERS 
+    # ----------------------------------
+    c1, c2, c3, c4, c5 = st.columns([2, 0.1, 2, 0.1, 1])
+
+    # Bank Filter
+    with c1:
+        app_list = sorted(df_tab1["app"].dropna().unique().tolist())
+        selected_apps = st.multiselect(
+            "Bank App", options=app_list, default=app_list,
+            help="Choose one or more apps/banks."
+        )
+
+    # Time Period slider
+    with c3: 
+        min_date = df_tab1["period_month"].min()
+        max_date = df_tab1["period_month"].max()
+        default_start = max(min_date, max_date - pd.DateOffset(years=4))
+        start_date, end_date = st.slider(
+            "Time Period",
+            min_value=min_date.to_pydatetime(),
+            max_value=max_date.to_pydatetime(),
+            value=(default_start.to_pydatetime(), max_date.to_pydatetime()),
+            format="YYYY-MM-DD",
+            help="Filter by review date."
+        )
+
+    # Time Unit 
+    with c5:
+        unit = st.selectbox(
+            "Time Unit",
+            options=["Month", "Quarter", "Semester", "Year"],
+            index=1,
+            help="Select preferred time unit: Month, Quarter, Semester or Year."
+        )
+
+    # Apply filters on the monthly DF
+    mask = (
+        df_tab1["period_month"].between(pd.Timestamp(start_date), pd.Timestamp(end_date))
+        & (df_tab1["app"].isin(selected_apps) if selected_apps else True)
     )
+    df_f = df_tab1.loc[mask].copy()
+
+    if df_f.empty:
+        st.info("No data for the selected filters.")
+        st.stop()
+
+    # Rebin Month -> selected unit (keeps table small)
+    agg = rebin_from_month(df_f, unit)
+
+    # --- BLANK SPACING
+    st.write("")     
+
+    # KPIs (use review counts from agg and weighted mean for rating)
+    total_reviews = int(agg["n_reviews"].sum())
+    weighted_avg = (
+        (agg["avg_score"] * agg["n_reviews"]).sum() / max(total_reviews, 1)
+    )
+
+    k1, k2, k3, k4 = st.columns(4)
+    k2.metric("Reviews (filtered)", f"{total_reviews:,}")
+    k3.metric("Avg. rating", f"{weighted_avg:.2f} / 5")
     
-    # ===============================
-    # TAB 1: APP RATINGS 
-    # ===============================
-    with app_tab:
-        
-        # LOAD DF_TAB1
-        df_tab1= load_df("assets/df_tab1.parquet")        
+    # Chart (Altair)
+    palette = build_brand_palette(sorted(df_f["app"].dropna().unique().tolist()))
+    latest = agg.sort_values("period").groupby("app", as_index=False).tail(1)
+    legend_order = latest.sort_values("avg_score", ascending=False)["app"].tolist()
+    color_range = palette_in_order(legend_order, palette)
 
-        # ----------------------------------
-        # FILTERS 
-        # ----------------------------------
-        c1, c2, c3, c4, c5 = st.columns([2, 0.1, 2, 0.1, 1])
-
-        # Bank Filter
-        with c1:
-            app_list = sorted(df_tab1["app"].dropna().unique().tolist())
-            selected_apps = st.multiselect(
-                "Bank App", options=app_list, default=app_list,
-                help="Choose one or more apps/banks."
-            )
-
-        # Time Period slider
-        with c3: 
-            min_date = df_tab1["period_month"].min()
-            max_date = df_tab1["period_month"].max()
-            default_start = max(min_date, max_date - pd.DateOffset(years=4))
-            start_date, end_date = st.slider(
-                "Time Period",
-                min_value=min_date.to_pydatetime(),
-                max_value=max_date.to_pydatetime(),
-                value=(default_start.to_pydatetime(), max_date.to_pydatetime()),
-                format="YYYY-MM-DD",
-                help="Filter by review date."
-            )
-
-        # Time Unit 
-        with c5:
-            unit = st.selectbox(
-                "Time Unit",
-                options=["Month", "Quarter", "Semester", "Year"],
-                index=1,
-                help="Select preferred time unit: Month, Quarter, Semester or Year."
-            )
-
-        # Apply filters on the monthly DF
-        mask = (
-            df_tab1["period_month"].between(pd.Timestamp(start_date), pd.Timestamp(end_date))
-            & (df_tab1["app"].isin(selected_apps) if selected_apps else True)
-        )
-        df_f = df_tab1.loc[mask].copy()
-
-        if df_f.empty:
-            st.info("No data for the selected filters.")
-            st.stop()
-
-        # Rebin Month -> selected unit (keeps table small)
-        agg = rebin_from_month(df_f, unit)
-
-        # --- BLANK SPACING
-        st.write("")     
-
-        # KPIs (use review counts from agg and weighted mean for rating)
-        total_reviews = int(agg["n_reviews"].sum())
-        weighted_avg = (
-            (agg["avg_score"] * agg["n_reviews"]).sum() / max(total_reviews, 1)
-        )
-
-        k1, k2, k3, k4 = st.columns(4)
-        k2.metric("Reviews (filtered)", f"{total_reviews:,}")
-        k3.metric("Avg. rating", f"{weighted_avg:.2f} / 5")
-        
-        # Chart (Altair)
-        palette = build_brand_palette(sorted(df_f["app"].dropna().unique().tolist()))
-        latest = agg.sort_values("period").groupby("app", as_index=False).tail(1)
-        legend_order = latest.sort_values("avg_score", ascending=False)["app"].tolist()
-        color_range = palette_in_order(legend_order, palette)
-
-        base = alt.Chart(agg).mark_line(point=True).encode(
-            x=alt.X(
-                "period:T",
-                title="Time",
-                axis=alt.Axis(
-                    format="%b/%y",        # e.g., Oct/24
-                    labelAngle=0,          # keep labels horizontal
-                    labelOverlap=True
-                ),
+    base = alt.Chart(agg).mark_line(point=True).encode(
+        x=alt.X(
+            "period:T",
+            title="Time",
+            axis=alt.Axis(
+                format="%b/%y",        # e.g., Oct/24
+                labelAngle=0,          # keep labels horizontal
+                labelOverlap=True
             ),
-            y=alt.Y("avg_score:Q", title="Average rating"),
-            color=alt.Color(
-                "app:N",
+        ),
+        y=alt.Y("avg_score:Q", title="Average rating"),
+        color=alt.Color(
+            "app:N",
+            title="App",
+            sort=legend_order,
+            scale=alt.Scale(domain=legend_order, range=color_range),
+            legend=alt.Legend(
                 title="App",
-                sort=legend_order,
-                scale=alt.Scale(domain=legend_order, range=color_range),
-                legend=alt.Legend(
-                    title="App",
-                    orient='right',
-                    #direction = "horizontal",
-                    labelFontSize=12,
-                    titleFontSize=13,
-                    padding=7, # gap between legend and chart
-                    symbolSize=80),
-            ),
-            tooltip=[
-                alt.Tooltip("period:T", title="Period"),
-                alt.Tooltip("app:N", title="App"),
-                alt.Tooltip("avg_score:Q", title="Avg. rating", format=".2f"),
-            ],
-        ).properties(height=420)
+                orient='right',
+                #direction = "horizontal",
+                labelFontSize=12,
+                titleFontSize=13,
+                padding=7, # gap between legend and chart
+                symbolSize=80),
+        ),
+        tooltip=[
+            alt.Tooltip("period:T", title="Period"),
+            alt.Tooltip("app:N", title="App"),
+            alt.Tooltip("avg_score:Q", title="Avg. rating", format=".2f"),
+        ],
+    ).properties(height=420)
 
-        st.write("")
+    st.write("")
 
-        st.altair_chart(base, use_container_width=True)
+    st.altair_chart(base, use_container_width=True)
 
-        # ------------------
-        # Tab 1 Footer
-        # ------------------
-        st.write("")
-        st.markdown(
-            """
-        <div style="text-align:left; color: gray; font-size: 10px; margin-left:10px; margin-top:5px;">
-            Note: Ratings for each time unit are simple averages of the monthly averages - i.e., not weighted by review counts.
-            </a><br>
-        </div>
-            """,
-            unsafe_allow_html=True
-        )  
-    
-    # -------------------------------
-    # TAB 2: TOPIC MODELING
-    # -------------------------------
-    
-    with topics_tab:
-
-        # LOAD DF_TAB2
-        
-        cols_tab2 = ["app", "review_date", "score", "topic_label_SEG"]
-        df_tab2= load_df("assets/df_tab3.parquet", cols=cols_tab2)
-        
-        # --- Light, memory-friendly dtypes
-        df_tab2["review_date"]  = pd.to_datetime(df_tab2["review_date"], errors="coerce")
-        df_tab2["score"] = pd.to_numeric(df_tab2["score"], errors="coerce").astype("Int64")
-
-        # --- Categories reduce memory & speed up groupby
-        for c in ("app", "topic_label_SEG"):
-            df_tab2[c] = df_tab2[c].astype("category")
-            
-        
-        # FILTERS 
-        c1, c2, c3, c4, c5 = st.columns([1, 0.1, 2, 0.1, 2])
-
-        # --- Type of review filter | default 'Negative'
-        with c1:
-            sentiment_t2 = st.segmented_control(
-                "Type of reviews",
-                ["Negative", "Positive"],
-                default = "Negative",
-                key="t2_sentiment"       
-            )
-            score_vals = [1, 2] if sentiment_t2 == "Negative" else [4, 5]
-            
-        # --- Bank App Filter
-        with c3:
-            apps = sorted(df_tab2["app"].dropna().unique().tolist())
-            sel_apps = st.multiselect(
-                "Bank App",
-                options=apps,
-                default=apps,
-                help="Choose one or more apps/banks.",
-                key="t2_bank_app"
-            )
-        
-        # --- Time Period slider
-        with c5:        
-            min_dt = pd.to_datetime(df_tab2["review_date"].min())
-            max_dt = pd.to_datetime(df_tab2["review_date"].max())
-            default_start = max(min_dt, max_dt - pd.DateOffset(years=4))
-            start_dt, end_dt = st.slider(
-                "Time Period",
-                min_value=min_dt.to_pydatetime(),
-                max_value=max_dt.to_pydatetime(),
-                value=(default_start.to_pydatetime(), max_dt.to_pydatetime()),
-                format="YYYY-MM-DD",
-                help="Filter by review date.",
-                key="t2_time_period"
-            )
-        
-    
-        # --- Lightweight filtering ------------------------------
-        mask = (
-            df_tab2["app"].isin(sel_apps)
-            & df_tab2["score"].isin(score_vals)
-            & df_tab2["review_date"].between(pd.Timestamp(start_dt), pd.Timestamp(end_dt))
-            & df_tab2["topic_label_SEG"].notna()
-            & (df_tab2["topic_label_SEG"] != "Undefined")
-        )
-        
-        view = df_tab2.loc[mask, ["app", "topic_label_SEG"]]
-        if view.empty:
-            st.info("No reviews match the current filters.")
-            st.stop()
-    
-        # --- Prepare topic order & colors -----------------------------------------
-        # Keep a stable topic order: use our color dict order where available, then any extras
-        topics_in_view = view["topic_label_SEG"].cat.remove_unused_categories().cat.categories.tolist()
-        ordered_topics = topics_in_view
-
-        # Build a deterministic color map for the topics we actually have
-        color_map = {t: COLOR_CYCLE[i % len(COLOR_CYCLE)] for i, t in enumerate(ordered_topics)}
-        
-        # Aggregate to proportions per app
-        ct = (view.groupby(["app", "topic_label_SEG"], observed=True)
-                  .size()
-                  .rename("n")
-                  .reset_index())
-    
-        # Ensure every (app, topic) pair exists -> aligned stacks
-        all_index = pd.MultiIndex.from_product([sel_apps, ordered_topics], names=["app", "topic_label_SEG"])
-        ct = ct.set_index(["app", "topic_label_SEG"]).reindex(all_index, fill_value=0).reset_index()
-        
-        totals = ct.groupby("app", as_index=False)["n"].sum().rename(columns={"n":"total_n"})
-        ct = ct.merge(totals, on="app", how="left")
-        ct["pct"] = np.where(ct["total_n"]>0, ct["n"]/ct["total_n"]*100.0, 0.0)
-        
-        x_order = sel_apps
-        order_map = {a:i for i,a in enumerate(x_order)}
-    
-        # --- Build figure (stacked 100%) ------------------------------------------
-        fig = go.Figure()
-        for topic in ordered_topics:
-            df_t = ct[ct["topic_label_SEG"]==topic].sort_values("app", key=lambda s: s.map(order_map))
-            fig.add_trace(
-                go.Bar(
-                    x=df_t["pct"],
-                    y=df_t["app"],
-                    orientation = 'h',
-                    name=topic,
-                    marker_color=color_map[topic],
-                    text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=7, ""),
-                    textposition="inside",
-                    insidetextanchor="middle",
-                    textfont=dict(size=10, color="white"),
-                    hovertemplate=(
-                        topic + ": %{x:.1f}%<br>"
-                        + "Count: %{customdata}"
-                        + "<extra></extra>"
-                    ),
-                    customdata=df_t["n"],
-                )
-            )
-        
-        fig.update_layout(
-            barmode="stack",
-            xaxis=dict(title="Proportion of reviews", range=[0, 100], ticksuffix="%", showgrid=True),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom", y=-0.4,
-                xanchor="center", x=0.5,
-                traceorder="normal",
-                bgcolor="rgba(255,255,255,0.15)",
-                font_size= 10,
-                itemsizing="constant",        # makes marker a fixed size
-                itemwidth=30,                 # width reserved for marker + spacing
-                tracegroupgap=0 
-            ),
-            margin=dict(l=5, r=5, t=30, b=60),
-            height=520,
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-        # Footnote / notes
-        st.caption(
-            "Notes: Proportions are within each app (stacked to 100%). "
-            "‘Positive’ uses scores 4–5 and ‘Negative’ uses scores 1–2. "
-            "Reviews that were not possible to allocate to a specific topic were removed from this analysis."
-        )  
-    
-    # -------------------------------
-    # Tab 3 placeholder
-    # -------------------------------
-
-    with reviews_tab:
-
-        # --- LOAD DF_TAB3 -------------------------
-
-        df_tab3 = load_df("assets/df_tab3.parquet")
-       
-        # --- Filters row ---------------------------
-        c1, c2, c3, c4, c5 = st.columns([1, 0.1, 2, 0.1, 2])
-
-        # Type of review - default 'Negative'
-        with c1:
-            sentiment_t3 = st.segmented_control(
-                "Type of reviews",
-                ["Negative", "Positive"],
-                default = "Negative",
-                key="t3_sentiment"
-            )
-      
-        # Bank App select (optional)
-        with c3:
-            app_options = ["All"] + sorted([a for a in df_tab3["app"].dropna().astype(str).unique()])
-            app_sel = st.selectbox("Bank App (optional)", app_options, index=0)
-        
-        # Topic select (optional)
-        with c5:
-            if sentiment_t3 == "Negative":
-                topic_options = ["All"] + NEGATIVE_TOPICS
-            else:
-                topic_options = ["All"] + POSITIVE_TOPICS
-
-            topic_sel = st.selectbox("Topic (optional)", topic_options, index=0)
-
-        st.write("")
-
-        # --- Search row ---------------------------
-        c6, c7, c8 = st.columns([4, 0.1, 1.5])
-
-        with c6:
-            words_raw = st.text_input(
-                "Words to search (comma / semicolon / newline separated)",
-                placeholder="e.g., fees, login, customer service"
-            )
-        with c8:
-            n_reviews = st.number_input("Number of reviews", min_value=1, max_value=10, value=5, step=1, help="Select number reviews to display" )
-
-        st.write("")
-
-        # --- Action button ---------------------------------------------------------
-        do_search = st.button("Search Reviews", type="primary")
-            
-        if do_search:
-            df_filtered = df_tab3.copy()
-    
-            # Sentiment to score buckets
-            if sentiment_t3 == "Negative":
-                df_filtered = df_filtered[df_filtered["score"].isin([1, 2])]
-            else:  # Positive
-                df_filtered = df_filtered[df_filtered["score"].isin([4, 5])]
-    
-            # App filter
-            if app_sel != "All":
-                df_filtered = df_filtered[df_filtered["app"].astype(str) == str(app_sel)]
-    
-            # Topic filter
-            if topic_sel != "All":
-                df_filtered = df_filtered[df_filtered["topic_label_SEG"].astype(str) == str(topic_sel)]
-    
-            # Words filter (supports multiple terms)
-            words = [w.strip() for w in re.split(r"[,\n;]+", words_raw) if w.strip()]
-            if words:
-                if isinstance(words, str):
-                    words = [words]  
-                
-                for w in words:
-                    pattern = r"\b" + re.escape(w) + r"\b"
-                    mask = df_filtered['review_text'].astype(str).str.contains(pattern, case=False, na=False, regex=True)
-                    df_filtered = df_filtered[mask]
-    
-            # Safety: if nothing left, message and stop
-            if df_filtered.empty:
-                st.info("No reviews found for the selected filters / words.")
-                return
-    
-            # --- Call your sampler (filters already applied so pass None for function parameters) -----------------------------
-            try:
-                out = get_sample(
-                    df=df_filtered,
-                    app=None,
-                    words=None,
-                    score=None,
-                    topics=None,
-                    n=n_reviews,
-                    seed=st.session_state.get("seed", None),
-                )
-            except Exception as e:
-                st.error(f"Error while sampling reviews: {e}")
-                return
-    
-            if out.empty:
-                st.info("No reviews returned by the sampler with the current settings.")
-                return
-               
-            st.caption(f"Showing up to {n_reviews} reviews.")
-            for i, r in out.iterrows():
-                with st.container(border=True):
-                    c1, c2, c3 = st.columns([1, 1, 2])
-                    c1.markdown(f"**App:** {r['app']}")
-                    c2.markdown(f"**Score:** {r['score']}")
-                    c3.markdown(f"**Date:** {r['review_date']}")
-                    st.markdown(f"**Topic:** {r.get('topic_label_SEG', r.get('topic_label_SEL','—'))}")
-                    st.markdown(r["review_text"])  # full text, wrapped
-                #st.write("")  # small spacer)
-    
-            # Optional: quick export
-            st.download_button(
-                "Download CSV",
-                data=out.to_csv(index=False).encode("utf-8"),
-                file_name="review_samples.csv",
-                mime="text/csv",
-            )
-
-
-    # ================================================
-    # APP FOOTER
-    # ================================================
-
-    # Add spacer
-    st.markdown("<br>", unsafe_allow_html=True)
+    # ------------------
+    # Tab 1 Footer
+    # ------------------
+    st.write("")
     st.markdown(
         """
-        <hr style="margin: 5px 0 0 0; border: none; border-top: 1px solid #ddd;">
-        """,
-        unsafe_allow_html=True
-    )
-
-    # Footer note
-    st.markdown(
-        """
-    <div style="text-align:left; color: gray; font-size: 12px; margin-left:10px; margin-top:0px;">
-        Developed by 
-        <a href="https://www.linkedin.com/in/pedrofcatarino/" target="_blank"
-        style="color:#0a66c2; text-decoration:underline;">
-        Pedro Catarino
+    <div style="text-align:left; color: gray; font-size: 10px; margin-left:10px; margin-top:5px;">
+        Note: Ratings for each time unit are simple averages of the monthly averages - i.e., not weighted by review counts.
         </a><br>
-        Data source: Google Play Store reviews. Last Update: 4th September 2025.
     </div>
         """,
         unsafe_allow_html=True
+    )  
+    
+# -------------------------------
+# TAB 2: TOPIC MODELING
+# -------------------------------
+
+with topics_tab:
+
+    # LOAD DF_TAB2
+    
+    cols_tab2 = ["app", "review_date", "score", "topic_label_SEG"]
+    df_tab2= load_df("assets/df_tab3.parquet", cols=cols_tab2)
+    
+    # --- Light, memory-friendly dtypes
+    df_tab2["review_date"]  = pd.to_datetime(df_tab2["review_date"], errors="coerce")
+    df_tab2["score"] = pd.to_numeric(df_tab2["score"], errors="coerce").astype("Int64")
+
+    # --- Categories reduce memory & speed up groupby
+    for c in ("app", "topic_label_SEG"):
+        df_tab2[c] = df_tab2[c].astype("category")
+        
+    
+    # FILTERS 
+    c1, c2, c3, c4, c5 = st.columns([1, 0.1, 2, 0.1, 2])
+
+    # --- Type of review filter | default 'Negative'
+    with c1:
+        sentiment_t2 = st.segmented_control(
+            "Type of reviews",
+            ["Negative", "Positive"],
+            default = "Negative",
+            key="t2_sentiment"       
+        )
+        score_vals = [1, 2] if sentiment_t2 == "Negative" else [4, 5]
+        
+    # --- Bank App Filter
+    with c3:
+        apps = sorted(df_tab2["app"].dropna().unique().tolist())
+        sel_apps = st.multiselect(
+            "Bank App",
+            options=apps,
+            default=apps,
+            help="Choose one or more apps/banks.",
+            key="t2_bank_app"
+        )
+    
+    # --- Time Period slider
+    with c5:        
+        min_dt = pd.to_datetime(df_tab2["review_date"].min())
+        max_dt = pd.to_datetime(df_tab2["review_date"].max())
+        default_start = max(min_dt, max_dt - pd.DateOffset(years=4))
+        start_dt, end_dt = st.slider(
+            "Time Period",
+            min_value=min_dt.to_pydatetime(),
+            max_value=max_dt.to_pydatetime(),
+            value=(default_start.to_pydatetime(), max_dt.to_pydatetime()),
+            format="YYYY-MM-DD",
+            help="Filter by review date.",
+            key="t2_time_period"
+        )
+    
+
+    # --- Lightweight filtering ------------------------------
+    mask = (
+        df_tab2["app"].isin(sel_apps)
+        & df_tab2["score"].isin(score_vals)
+        & df_tab2["review_date"].between(pd.Timestamp(start_dt), pd.Timestamp(end_dt))
+        & df_tab2["topic_label_SEG"].notna()
+        & (df_tab2["topic_label_SEG"] != "Undefined")
     )
+    
+    view = df_tab2.loc[mask, ["app", "topic_label_SEG"]]
+    if view.empty:
+        st.info("No reviews match the current filters.")
+        st.stop()
 
+    # --- Prepare topic order & colors -----------------------------------------
+    # Keep a stable topic order: use our color dict order where available, then any extras
+    topics_in_view = view["topic_label_SEG"].cat.remove_unused_categories().cat.categories.tolist()
+    ordered_topics = topics_in_view
 
-if __name__ == "__main__":
-    main()
+    # Build a deterministic color map for the topics we actually have
+    color_map = {t: COLOR_CYCLE[i % len(COLOR_CYCLE)] for i, t in enumerate(ordered_topics)}
+    
+    # Aggregate to proportions per app
+    ct = (view.groupby(["app", "topic_label_SEG"], observed=True)
+                .size()
+                .rename("n")
+                .reset_index())
+
+    # Ensure every (app, topic) pair exists -> aligned stacks
+    all_index = pd.MultiIndex.from_product([sel_apps, ordered_topics], names=["app", "topic_label_SEG"])
+    ct = ct.set_index(["app", "topic_label_SEG"]).reindex(all_index, fill_value=0).reset_index()
+    
+    totals = ct.groupby("app", as_index=False)["n"].sum().rename(columns={"n":"total_n"})
+    ct = ct.merge(totals, on="app", how="left")
+    ct["pct"] = np.where(ct["total_n"]>0, ct["n"]/ct["total_n"]*100.0, 0.0)
+    
+    x_order = sel_apps
+    order_map = {a:i for i,a in enumerate(x_order)}
+
+    # --- Build figure (stacked 100%) ------------------------------------------
+    fig = go.Figure()
+    for topic in ordered_topics:
+        df_t = ct[ct["topic_label_SEG"]==topic].sort_values("app", key=lambda s: s.map(order_map))
+        fig.add_trace(
+            go.Bar(
+                x=df_t["pct"],
+                y=df_t["app"],
+                orientation = 'h',
+                name=topic,
+                marker_color=color_map[topic],
+                text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=7, ""),
+                textposition="inside",
+                insidetextanchor="middle",
+                textfont=dict(size=10, color="white"),
+                hovertemplate=(
+                    topic + ": %{x:.1f}%<br>"
+                    + "Count: %{customdata}"
+                    + "<extra></extra>"
+                ),
+                customdata=df_t["n"],
+            )
+        )
+    
+    fig.update_layout(
+        barmode="stack",
+        xaxis=dict(title="Proportion of reviews", range=[0, 100], ticksuffix="%", showgrid=True),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom", y=-0.4,
+            xanchor="center", x=0.5,
+            traceorder="normal",
+            bgcolor="rgba(255,255,255,0.15)",
+            font_size= 10,
+            itemsizing="constant",        # makes marker a fixed size
+            itemwidth=30,                 # width reserved for marker + spacing
+            tracegroupgap=0 
+        ),
+        margin=dict(l=5, r=5, t=30, b=60),
+        height=520,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Footnote / notes
+    st.caption(
+        "Notes: Proportions are within each app (stacked to 100%). "
+        "‘Positive’ uses scores 4–5 and ‘Negative’ uses scores 1–2. "
+        "Reviews that were not possible to allocate to a specific topic were removed from this analysis."
+    )  
+    
+# -------------------------------
+# Tab 3 SEARCH REVIEWS
+# -------------------------------
+
+with reviews_tab:
+
+    # --- LOAD DF_TAB3 -------------------------
+
+    df_tab3 = load_df("assets/df_tab3.parquet")
+    
+    # --- Filters row ---------------------------
+    c1, s1, c2, s2, c3 = st.columns([1, 0.1, 2, 0.1, 2])
+
+    # Type of review - default 'Negative'
+    with c1:
+        sentiment_t3 = st.segmented_control(
+            "Type of reviews",
+            ["Negative", "Positive"],
+            default = "Negative",
+            key="t3_sentiment"
+        )
+    
+    # Bank App select (optional)
+    with c2:
+        app_options = ["All"] + sorted([a for a in df_tab3["app"].dropna().astype(str).unique()])
+        app_sel = st.selectbox("Bank App (optional)", app_options, index=0)
+    
+    # Topic select (optional)
+    with c3:
+        if sentiment_t3 == "Negative":
+            topic_options = ["All"] + NEGATIVE_TOPICS
+        else:
+            topic_options = ["All"] + POSITIVE_TOPICS
+
+        topic_sel = st.selectbox("Topic (optional)", topic_options, index=0)
+
+    st.write("")
+
+    # --- Search row ---------------------------
+    c6, c7, c8 = st.columns([4, 0.1, 1.5])
+
+    with c6:
+        words_raw = st.text_input(
+            "Words to search (comma / semicolon / newline separated)",
+            placeholder="e.g., fees, login, customer service"
+        )
+    with c8:
+        n_reviews = st.number_input("Number of reviews", min_value=1, max_value=10, value=5, step=1, help="Select number reviews to display" )
+
+    st.write("")
+
+    # --- Action button ---------------------------------------------------------
+    do_search = st.button("Search Reviews", type="primary")
+        
+    if do_search:
+        df_filtered = df_tab3.copy()
+
+        # Sentiment to score buckets
+        if sentiment_t3 == "Negative":
+            df_filtered = df_filtered[df_filtered["score"].isin([1, 2])]
+        else:  # Positive
+            df_filtered = df_filtered[df_filtered["score"].isin([4, 5])]
+
+        # App filter
+        if app_sel != "All":
+            df_filtered = df_filtered[df_filtered["app"].astype(str) == str(app_sel)]
+
+        # Topic filter
+        if topic_sel != "All":
+            df_filtered = df_filtered[df_filtered["topic_label_SEG"].astype(str) == str(topic_sel)]
+
+        # Words filter (supports multiple terms)
+        words = [w.strip() for w in re.split(r"[,\n;]+", words_raw) if w.strip()]
+        if words:
+            if isinstance(words, str):
+                words = [words]  
+            
+            for w in words:
+                pattern = r"\b" + re.escape(w) + r"\b"
+                mask = df_filtered['review_text'].astype(str).str.contains(pattern, case=False, na=False, regex=True)
+                df_filtered = df_filtered[mask]
+
+        # Safety: if nothing left, message and stop
+        if df_filtered.empty:
+            st.info("No reviews found for the selected filters / words.")
+            st.stop()
+
+        # --- Call your sampler (filters already applied so pass None for function parameters) -----------------------------
+        try:
+            out = get_sample(
+                df=df_filtered,
+                app=None,
+                words=None,
+                score=None,
+                topics=None,
+                n=n_reviews,
+                seed=st.session_state.get("seed", None),
+            )
+        except Exception as e:
+            st.error(f"Error while sampling reviews: {e}")
+            st.stop()
+
+        if out.empty:
+            st.info("No reviews returned by the sampler with the current settings.")
+            st.stop()
+            
+        st.caption(f"Showing up to {n_reviews} reviews.")
+        for i, r in out.iterrows():
+            with st.container(border=True):
+                c1, c2, c3 = st.columns([1, 1, 2])
+                c1.markdown(f"**App:** {r['app']}")
+                c2.markdown(f"**Score:** {r['score']}")
+                c3.markdown(f"**Date:** {r['review_date']}")
+                st.markdown(f"**Topic:** {r.get('topic_label_SEG', r.get('topic_label_SEL','—'))}")
+                st.markdown(r["review_text"])  # full text, wrapped
+            #st.write("")  # small spacer)
+
+        # Optional: quick export
+        st.download_button(
+            "Download CSV",
+            data=out.to_csv(index=False).encode("utf-8"),
+            file_name="review_samples.csv",
+            mime="text/csv",
+        )
+
+# ================================================
+# CHAT WIDGET (SIDEBAR)
+# ================================================
+
+st.markdown(
+    """
+    <style>
+    [data-testid="stSidebar"] {
+        background-color: #088F8F;   /* Blue Green */
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+def chat_ui():
+    st.write("Placeholder for the LLM chat interface.")
+    # Here you would implement the actual chat functionality
+    # For example, using OpenAI's API to generate responses based on the dataframe and index
+
+with st.sidebar:
+    st.header("🤓 Ask PAI")
+    chat_ui()
+
+# ================================================
+# APP FOOTER
+# ================================================
+
+# Add spacer
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown(
+    """
+    <hr style="margin: 5px 0 0 0; border: none; border-top: 1px solid #ddd;">
+    """,
+    unsafe_allow_html=True
+)
+
+# Footer note
+st.markdown(
+    """
+<div style="text-align:left; color: gray; font-size: 12px; margin-left:10px; margin-top:0px;">
+    Developed by 
+    <a href="https://www.linkedin.com/in/pedrofcatarino/" target="_blank"
+    style="color:#0a66c2; text-decoration:underline;">
+    Pedro Catarino
+    </a><br>
+    Data source: Google Play Store reviews. Last Update: 4th September 2025.
+</div>
+    """,
+    unsafe_allow_html=True
+)
+
