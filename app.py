@@ -22,6 +22,7 @@ st.set_page_config(
     page_title="Banking App Reviews",
     page_icon="📱",
     layout="wide",
+    initial_sidebar_state="auto"
 )
 
 st.markdown(
@@ -551,7 +552,7 @@ with reviews_tab:
                 c1.markdown(f"**App:** {r['app']}")
                 c2.markdown(f"**Score:** {r['score']}")
                 c3.markdown(f"**Date:** {r['review_date']}")
-                c4.markdown(r['topic_prob_SEG'])
+                st.markdown(f"**Topic:** {r['topic_label_SEG']}")
                 st.markdown(r["review_text"])  # full text, wrapped
             #st.write("")  # small spacer)
 
@@ -570,8 +571,10 @@ with reviews_tab:
 st.markdown(
     """
     <style>
+    /* Target sidebar headers */
     [data-testid="stSidebar"] {
-        background-color: #088F8F;   /* Blue Green */
+        background-color: #306F82;   /* Blue Green */
+        color: white !important;        
     }
     </style>
     """,
@@ -596,7 +599,7 @@ BANK_ALIASES = {
 }
 
 def _ensure_llm_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Ensure df has the columns our LLM helpers expect."""
+    """Ensure df has the columns the LLM helpers expect."""
     out = df.copy()
 
     # row_id
@@ -629,7 +632,7 @@ def _detect_target_apps(question: str) -> set:
 
 
 def _pick_context_rows(df: pd.DataFrame, question: str, k: int = 12) -> pd.DataFrame:
-    df = _ensure_llm_columns(df)  # your existing helper that adds row_id, coerces dates, etc.
+    df = _ensure_llm_columns(df)  
     if df.empty or not isinstance(question, str) or not question.strip():
         return df.head(0)
 
@@ -730,7 +733,8 @@ Context:
 # -------------------------------------------------
 
 def sidebar_chat_single_turn(df_tab3: pd.DataFrame, key: str = "sidebar-single"):
-    st.header("🤓 Ask PAI")
+    
+    st.sidebar.header("😊 Ask PAI")
 
     # ---- UI state (single-turn) ----
     ss = st.session_state
@@ -754,8 +758,19 @@ def sidebar_chat_single_turn(df_tab3: pd.DataFrame, key: str = "sidebar-single")
         min-height: 120px;    /* adjust height here */
         line-height: 1.35;
         padding: 10px 12px;   /* inner padding of the black box */
+        color: white;         /* text color */            
       }
-      .ans { font-size: 0.98rem; line-height: 1.5; }
+    /* Text color inside the textarea */
+    [data-testid="stTextArea"] textarea {
+        color: #1A1818 !important;   /* typed text */
+        background: #ffffff !important;  /* box background */
+        font-size: 1rem !important;  
+    }
+
+    /* Placeholder text color */
+    [data-testid="stTextArea"] textarea::placeholder {
+        color: #999999 !important;   /* placeholder */                
+    .ans { font-size: 0.98rem; line-height: 1.5; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -771,7 +786,7 @@ def sidebar_chat_single_turn(df_tab3: pd.DataFrame, key: str = "sidebar-single")
             placeholder="Type your question…",
             label_visibility="collapsed",
         )
-        submitted = st.form_submit_button("➤", use_container_width=True)
+        submitted = st.form_submit_button("➤", use_container_width=True, type="primary")
         st.markdown("</div>", unsafe_allow_html=True)
 
     if submitted and ss[f"{key}_q"].strip() and ss[f"{key}_phase"] in ("idle", "answered"):
@@ -797,7 +812,7 @@ def sidebar_chat_single_turn(df_tab3: pd.DataFrame, key: str = "sidebar-single")
 
     if ss[f"{key}_phase"] == "answered" and ss[f"{key}_answer"]:
         st.markdown(f"<div class='ans'>{ss[f'{key}_answer']}</div>", unsafe_allow_html=True)
-        if st.button("Make a new question", use_container_width=True, key=f"{key}_reset"):
+        if st.button("Make a new question", use_container_width=True, key=f"{key}_reset", type="primary"):
             ss[f"{key}_phase"] = "idle"
             ss[f"{key}_q"] = ""
             ss[f"{key}_answer"] = ""
@@ -811,7 +826,7 @@ def sidebar_chat_single_turn(df_tab3: pd.DataFrame, key: str = "sidebar-single")
         st.markdown(f"<div class='ans'>{ss[f'{key}_answer']}</div>", unsafe_allow_html=True)
 
         # Reset button at the bottom
-        if st.button("Make a new question", use_container_width=True, key=f"{key}_reset"):
+        if st.button("Make a new question", use_container_width=True, key=f"{key}_reset", type="primary"):
             ss[f"{key}_phase"] = "idle"
             ss[f"{key}_q"] = ""
             ss[f"{key}_answer"] = ""
