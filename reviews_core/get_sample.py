@@ -31,27 +31,43 @@ def get_sample(
         m = filtered['topic_label_SEG'].astype(str).str.contains(topics, case=False, na=False)
         filtered = filtered[m]
         
-    # --- Prioritized sampling ---------------------------------------------------
-    high = filtered[filtered['topic_prob_SEG'] >= 0.5]
-    low  = filtered[filtered['topic_prob_SEG'] < 0.5]
-    
-    rng = np.random.default_rng(seed)
-    n_high = min(len(high), n)
-    n_low = max(0, n - n_high)
-    
-    # createa a int random_state from the Generator
-    rs_high = int(rng.integers(0, 1_000_000_000)) if len(high) else None
-    rs_low  = int(rng.integers(0, 1_000_000_000)) if len(low)  else None
+    # --- Prioritized sampling ----------------------------------------------------
+    prob = filtered['topic_prob_SEG'].astype(float)
+    txtlen = filtered['review_text'].astype(str).str.len()
 
-    n_high = min(len(high), n)
-    n_low  = max(0, n - n_high)
-    
-    take_high = high.sample(n=n_high, random_state=rs_high) if n_high > 0 else high.iloc[[]]
-    take_low  = low.sample(n=n_low,  random_state=rs_low)  if n_low  > 0 else low.iloc[[]]
+    # Priority tresholds
+    high = filtered[(prob >= 0.50) & (txtlen >= 100)]
+    mid  = filtered[(prob >= 0.50) & (txtlen >= 60) % (txtlen < 100)]
 
-    out = pd.concat([take_high, take_low], ignore_index=True)
+    mid  = mid.loc[~mid.index.isin(high.index)]
+    low  = filtered.loc[~filtered.index.isin(high.index.union(mid.index))]
 
-    # --- Return only requested columns (if you want) ---
-    cols = ['app', 'review_text', 'score', 'review_date', 'topic_label_SEG']
+    # Sort each tier by most recent first
+    high = high.sort_values(by='review_date', ascending=False)
+    mid  = mid.sort_values(by='review_date',  ascending=False)
+    low  = low.sort_values(by='review_date',  ascending=False)
+
+    # Take deterministically (High → Mid → Low)
+    remaining = n
+    parts = []
+    if remaining > 0 and not high.empty:
+        take = high.head(remaining)
+        parts.append(take)
+        remaining -= len(take)
+
+    if remaining > 0 and not mid.empty:
+        take = mid.head(remaining)
+        parts.append(take)
+        remaining -= len(take)
+
+    if remaining > 0 and not low.empty:
+        take = low.head(remaining)
+        parts.append(take)
+        remaining -= len(take)
+
+    out = pd.concat(parts, ignore_index=True) if parts else filtered.iloc[0:0]
+
+    # Return only requested columns
+    cols = ['app', 'review_text', 'score', 'review_date', 'topic_label_SEG', 'topic_prob_SEG']
     cols = [c for c in cols if c in out.columns]
     return out[cols]

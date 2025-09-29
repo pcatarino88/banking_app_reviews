@@ -300,7 +300,7 @@ with topics_tab:
         
     
     # FILTERS 
-    c1, c2, c3, c4, c5 = st.columns([1, 0.1, 2, 0.1, 2])
+    c1, s1, c2, s2, c3 = st.columns([1, 0.1, 2, 0.1, 2])
 
     # --- Type of review filter | default 'Negative'
     with c1:
@@ -313,7 +313,7 @@ with topics_tab:
         score_vals = [1, 2] if sentiment_t2 == "Negative" else [4, 5]
         
     # --- Bank App Filter
-    with c3:
+    with c2:
         apps = sorted(df_tab2["app"].dropna().unique().tolist())
         sel_apps = st.multiselect(
             "Bank App",
@@ -324,7 +324,7 @@ with topics_tab:
         )
     
     # --- Time Period slider
-    with c5:        
+    with c3:        
         min_dt = pd.to_datetime(df_tab2["review_date"].min())
         max_dt = pd.to_datetime(df_tab2["review_date"].max())
         default_start = max(min_dt, max_dt - pd.DateOffset(years=4))
@@ -421,13 +421,22 @@ with topics_tab:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # Footnote / notes
-    st.caption(
-        "Notes: Proportions are within each app (stacked to 100%). "
-        "‘Positive’ uses scores 4–5 and ‘Negative’ uses scores 1–2. "
-        "Reviews that were not possible to allocate to a specific topic were removed from this analysis."
+    # ------------------
+    # Tab 2 Footer
+    # ------------------
+    st.write("")
+    st.markdown(
+        """
+    <div style="text-align:left; color: gray; font-size: 10px; margin-left:10px; margin-top:5px;">
+        Notes: Proportions are within each app (stacked to 100%). ‘Positive’ uses scores 4–5 and ‘Negative’ uses scores 1–2. 
+        Reviews that were not possible to allocate to a specific topic were removed from this analysis.
+        </a><br>
+    </div>
+        """,
+        unsafe_allow_html=True
     )  
-    
+
+
 # -------------------------------
 # Tab 3 SEARCH REVIEWS
 # -------------------------------
@@ -467,14 +476,14 @@ with reviews_tab:
     st.write("")
 
     # --- Search row ---------------------------
-    c6, c7, c8 = st.columns([4, 0.1, 1.5])
+    c4, s3, c5 = st.columns([4, 0.1, 1.5])
 
-    with c6:
+    with c4:
         words_raw = st.text_input(
-            "Words to search (comma / semicolon / newline separated)",
+            "Words to search (comma or semicolon separated)",
             placeholder="e.g., fees, login, customer service"
         )
-    with c8:
+    with c5:
         n_reviews = st.number_input("Number of reviews", min_value=1, max_value=10, value=5, step=1, help="Select number reviews to display" )
 
     st.write("")
@@ -499,16 +508,15 @@ with reviews_tab:
         if topic_sel != "All":
             df_filtered = df_filtered[df_filtered["topic_label_SEG"].astype(str) == str(topic_sel)]
 
-        # Words filter (supports multiple terms)
+        # Words filter with OR logic - supports multiple words to search with OR logic
         words = [w.strip() for w in re.split(r"[,\n;]+", words_raw) if w.strip()]
         if words:
             if isinstance(words, str):
                 words = [words]  
             
-            for w in words:
-                pattern = r"\b" + re.escape(w) + r"\b"
-                mask = df_filtered['review_text'].astype(str).str.contains(pattern, case=False, na=False, regex=True)
-                df_filtered = df_filtered[mask]
+            pattern = r"\b(" + "|".join(re.escape(w) for w in words) + r")\b"
+            mask = df_filtered['review_text'].astype(str).str.contains(pattern, case=False, na=False, regex=True)
+            df_filtered = df_filtered[mask]
 
         # Safety: if nothing left, message and stop
         if df_filtered.empty:
@@ -537,15 +545,16 @@ with reviews_tab:
         st.caption(f"Showing up to {n_reviews} reviews.")
         for i, r in out.iterrows():
             with st.container(border=True):
-                c1, c2, c3 = st.columns([1, 1, 2])
+                c1, c2, c3, c4 = st.columns([1, 1, 2,1])
                 c1.markdown(f"**App:** {r['app']}")
                 c2.markdown(f"**Score:** {r['score']}")
                 c3.markdown(f"**Date:** {r['review_date']}")
+                c4.markdown(r['topic_prob_SEG'])
                 st.markdown(f"**Topic:** {r.get('topic_label_SEG', r.get('topic_label_SEL','—'))}")
                 st.markdown(r["review_text"])  # full text, wrapped
             #st.write("")  # small spacer)
 
-        # Optional: quick export
+        # Export to csv option
         st.download_button(
             "Download CSV",
             data=out.to_csv(index=False).encode("utf-8"),
