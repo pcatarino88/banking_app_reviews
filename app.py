@@ -10,7 +10,6 @@ import streamlit as st
 import altair as alt
 import plotly.graph_objects as go
 from reviews_core import get_sample
-import psutil  # memory widget
 from openai import OpenAI
 
 
@@ -48,7 +47,6 @@ st.markdown(
         width: 12px !important;
         height: 12px !important;
     }
-    
     /* dropdown option size */
     .stMultiSelect [data-baseweb="list"] div[role="option"] {
         font-size: 13px !important;
@@ -58,22 +56,9 @@ st.markdown(
         background-color: #306F82;   /* Blue Green */
         color: white !important;        
     }
-    /* Add text right after the sidebar toggle chevron */
-    header [data-testid="collapsedControl"]::after {
-        content: "  💬 Talk to an AI Assistant";
-        font-weight: 600;
-        font-size: 15px;
-        color: #0078ff;
-        vertical-align: middle;
-    }
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
-
-def show_memory_usage(show = True):
-    if show == True:
-        p = psutil.Process(os.getpid())
-        st.sidebar.caption(f"RAM used: {p.memory_info().rss / 1024**2:.0f} MB")
 
 # -------------------------------
 # II. Helpers
@@ -163,6 +148,7 @@ POSITIVE_TOPICS = ["Usability","Features & Security","Transactions & Money Mgmt"
 # -------------------------------
 
 st.title("📱 App Reviews")
+c1,c2 = st.columns([6,2])
 st.caption("Interactive analysis of App store reviews of UK banks")
 
 # Tabs
@@ -766,7 +752,6 @@ def sidebar_chat_single_turn(df_tab3: pd.DataFrame, key: str = "sidebar-single")
         background: #ffffff !important;  /* box background */
         font-size: 1rem !important;  
     }
-
     /* Placeholder text color */
     [data-testid="stTextArea"] textarea::placeholder {
         color: #999999 !important;   /* placeholder */                
