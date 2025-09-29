@@ -11,6 +11,8 @@ import altair as alt
 import plotly.graph_objects as go
 from reviews_core import get_sample
 import psutil  # memory widget
+from openai import OpenAI
+
 
 # -------------------------------
 # I. Page config
@@ -545,12 +547,11 @@ with reviews_tab:
         st.caption(f"Showing up to {n_reviews} reviews.")
         for i, r in out.iterrows():
             with st.container(border=True):
-                c1, c2, c3, c4 = st.columns([1, 1, 2,1])
+                c1, c2, c3 = st.columns([1, 1, 2])
                 c1.markdown(f"**App:** {r['app']}")
                 c2.markdown(f"**Score:** {r['score']}")
                 c3.markdown(f"**Date:** {r['review_date']}")
                 c4.markdown(r['topic_prob_SEG'])
-                st.markdown(f"**Topic:** {r.get('topic_label_SEG', r.get('topic_label_SEL','—'))}")
                 st.markdown(r["review_text"])  # full text, wrapped
             #st.write("")  # small spacer)
 
@@ -563,7 +564,7 @@ with reviews_tab:
         )
 
 # ================================================
-# CHAT WIDGET (SIDEBAR)
+# CHAT LLM (SIDEBAR)
 # ================================================
 
 st.markdown(
@@ -576,15 +577,255 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+OPENAI_MODEL = "gpt-4o-mini"
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-def chat_ui():
-    st.write("Placeholder for the LLM chat interface.")
-    # Here you would implement the actual chat functionality
-    # For example, using OpenAI's API to generate responses based on the dataframe and index
 
-with st.sidebar:
+# -------------------------------------------------
+# LLM helpers
+# -------------------------------------------------
+
+# App aliases
+BANK_ALIASES = {
+    "HSBC":     ["hsbc", "hsbc uk", "hsbc bank"],
+    "Santander":["santander", "santander uk"],
+    "Barclays": ["barclays", "barclays uk"],
+    "Lloyds":   ["lloyds", "lloyds bank", "loyds"],
+    "Monzo":    ["monzo"],
+    "Revolut":  ["revolut"]
+}
+
+def _ensure_llm_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Ensure df has the columns our LLM helpers expect."""
+    out = df.copy()
+
+    # row_id
+    if "row_id" not in out.columns:
+        out = out.reset_index(drop=True)
+        out["row_id"] = np.arange(len(out), dtype=int)
+
+    # review_date (datetime -> date string)
+    if "review_date" in out.columns:
+        out["review_date"] = pd.to_datetime(out["review_date"], errors="coerce").dt.date
+    else:
+        out["review_date"] = pd.NaT
+
+    # app / score / review_text safe defaults
+    for col, default in [("app", "unknown-app"),
+                         ("score", np.nan),
+                         ("review_text", "")]:
+        if col not in out.columns:
+            out[col] = default
+
+    return out
+
+def _detect_target_apps(question: str) -> set:
+    q = (question or "").lower()
+    hits = set()
+    for app, aliases in BANK_ALIASES.items():
+        if any(a in q for a in aliases):
+            hits.add(app)
+    return hits
+
+
+def _pick_context_rows(df: pd.DataFrame, question: str, k: int = 12) -> pd.DataFrame:
+    df = _ensure_llm_columns(df)  # your existing helper that adds row_id, coerces dates, etc.
+    if df.empty or not isinstance(question, str) or not question.strip():
+        return df.head(0)
+
+    # 1) detect target apps from the question
+    targets = _detect_target_apps(question)
+    targets_lower = {t.lower() for t in targets}
+
+    # 2) base masks
+    text = df["review_text"].astype(str)
+    words = [w.strip() for w in re.split(r"[\s,;:.!?/\\-]+", question) if w.strip()]
+    text_mask = pd.Series(False, index=df.index)
+    for w in words:
+        m = text.str.contains(rf"\b{re.escape(w)}\b", case=False, na=False, regex=True)
+        text_mask |= m
+
+    # 3) app mask (case-insensitive exact match on canonical app names)
+    app_series = df["app"].astype(str)
+    app_mask = app_series.str.lower().isin(targets_lower) if targets else pd.Series(False, index=df.index)
+
+    # 4) combine logic
+    if targets:
+        # if the user asked about a specific app, prefer that app; include rows even if text doesn't match
+        mask = (app_mask & text_mask) | app_mask
+    else:
+        mask = text_mask
+
+    hits = df[mask].copy()
+    if hits.empty and targets:
+        # still return that app's reviews if keywords missed
+        hits = df[app_mask].copy()
+    if hits.empty:
+        hits = df.copy()
+
+    hits = hits.sort_values("review_date", ascending=False).head(k)
+    cols = ["row_id", "app", "review_date", "score", "review_text"]
+    return hits[cols]
+
+def _rows_to_bullets(rows: pd.DataFrame, max_rows: int = 12, max_text: int = 260) -> str:
+    rows = _ensure_llm_columns(rows).head(max_rows)
+    if rows.empty:
+        return "(no matching context)"
+
+    out = []
+    for _, r in rows.iterrows():
+        rid = int(r["row_id"]) if pd.notna(r["row_id"]) else -1
+        date_str = str(r["review_date"])[:10] if pd.notna(r["review_date"]) else "NA"
+        app = str(r["app"])
+        score = r["score"]
+        txt = str(r["review_text"])[:max_text]
+        out.append(f"- [row_id={rid}] {date_str} | {app} | score={score} :: {txt}")
+    return "\n".join(out)
+
+def ask_llm_openai(question: str, context_bullets: str):
+    """OpenAI call (uses Streamlit secrets, falls back to env var)."""
+    api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+    client = OpenAI(api_key=api_key)
+
+    system = (
+        "You are an assistant named PAI that stands for Pedro Artificial Intelligence. "
+        "If asked about your identity, respond that you are PAI, which stands for Pedro Artificial Intelligence, and that you are an AI assistant created by Pedro Catarino. "
+        "Your role is to analyze banking app store reviews. "
+        "The source of the reviews is Google Play Store and is limited to UK banks."
+        "Be concise, numeric when helpful, and call out uncertainty if data is thin."
+        "Provide example of citations from reviews when relevant."
+        "Use only the provided context bullets to ground your answer. "
+        "If the user asks a question unrelated to these reviews "
+        "(for example, general knowledge, or anything not grounded in the context), "
+        "politely refuse and remind them that you can only discuss insights from the reviews."
+        "As for now, you are not prepared to answer to questions that require information about dates/periods of analysis,"
+        "If asked about dates/periods, please respond with 'I am still not prepared to give you details about dates, but I expect to be able to do it soon!! 😊'"
+    )
+    user = f"""Question: {question}
+
+Context:
+{context_bullets}
+"""
+
+    resp = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        temperature=0.2,
+        max_tokens=500,
+        messages=[{"role": "system", "content": system},
+                  {"role": "user", "content": user}],
+    )
+
+    answer = resp.choices[0].message.content.strip()
+    usage = getattr(resp, "usage", None)
+    meta = None
+    if usage:
+        prompt_t = usage.prompt_tokens or 0
+        comp_t = usage.completion_tokens or 0
+        cost = (prompt_t * 0.60 / 1_000_000) + (comp_t * 2.40 / 1_000_000)  # gpt-4o-mini
+        meta = {"prompt_tokens": prompt_t, "completion_tokens": comp_t, "cost_usd": round(cost, 6)}
+    return answer, meta
+
+# -------------------------------------------------
+# Chat UI
+# -------------------------------------------------
+
+def sidebar_chat_single_turn(df_tab3: pd.DataFrame, key: str = "sidebar-single"):
     st.header("🤓 Ask PAI")
-    chat_ui()
+
+    # ---- UI state (single-turn) ----
+    ss = st.session_state
+    ss.setdefault(f"{key}_phase", "idle")        # idle | thinking | answered
+    ss.setdefault(f"{key}_q", "")                # question text
+    ss.setdefault(f"{key}_answer", "")           # answer text
+    ss.setdefault(f"{key}_ctx", "")              # context bullets
+
+    # small CSS tweak for compact look
+    st.markdown("""
+    <style>
+      /* tighten the card around the input area */
+      .ask-wrap { 
+        border-radius: 5px;
+        padding: 8px 10x 10px;   /* smaller padding = less space to the border */
+        margin-bottom: 10px;
+      }
+      .hint { font-size: 0.85rem; opacity: 0.85; margin: 0 0 6px 0; }
+      /* make the input taller and comfy */
+      [data-testid="stTextArea"] textarea {
+        min-height: 120px;    /* adjust height here */
+        line-height: 1.35;
+        padding: 10px 12px;   /* inner padding of the black box */
+      }
+      .ans { font-size: 0.98rem; line-height: 1.5; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # --- Composer (textarea so we can set height & avoid browser autocomplete) ---
+    st.markdown("<div class='hint'>Ask about ratings, topics, or anything from the reviews…</div>", unsafe_allow_html=True)
+    with st.form(key=f"{key}_form", clear_on_submit=False):
+        st.markdown("<div class='ask-wrap'>", unsafe_allow_html=True)
+        ss[f"{key}_q"] = st.text_area(
+            label="",
+            value=ss[f"{key}_q"],
+            height=120,  # <- increase/decrease as you like
+            key=f"{key}_textarea_v2",  # new key helps avoid old browser suggestions
+            placeholder="Type your question…",
+            label_visibility="collapsed",
+        )
+        submitted = st.form_submit_button("➤", use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    if submitted and ss[f"{key}_q"].strip() and ss[f"{key}_phase"] in ("idle", "answered"):
+        ss[f"{key}_phase"] = "thinking"
+        ss[f"{key}_answer"] = ""
+        ss[f"{key}_ctx"] = ""
+        st.rerun()
+
+    # Thinking → Answer (keep your existing logic below)
+    if ss[f"{key}_phase"] == "thinking":
+        ph = st.empty()
+        ph.markdown("<p style='color:white; font-weight:bold;'>Thinking...</p>",unsafe_allow_html=True)
+        ctx_df = _pick_context_rows(df_tab3, ss[f"{key}_q"], k=12)
+        bullets = _rows_to_bullets(ctx_df, max_rows=12)
+        try:
+            answer, meta = ask_llm_openai(ss[f"{key}_q"], bullets)
+        except Exception as e:
+            answer, meta = f"LLM error: {e}\n(Do you have your API key set?)", None
+        ss[f"{key}_answer"] = answer
+        ss[f"{key}_ctx"] = bullets
+        ss[f"{key}_phase"] = "answered"
+        st.rerun()
+
+    if ss[f"{key}_phase"] == "answered" and ss[f"{key}_answer"]:
+        st.markdown(f"<div class='ans'>{ss[f'{key}_answer']}</div>", unsafe_allow_html=True)
+        if st.button("Make a new question", use_container_width=True, key=f"{key}_reset"):
+            ss[f"{key}_phase"] = "idle"
+            ss[f"{key}_q"] = ""
+            ss[f"{key}_answer"] = ""
+            ss[f"{key}_ctx"] = ""
+            st.rerun()
+
+        return  # stop rendering further on this run
+
+    if ss[f"{key}_phase"] == "answered":
+        # Show the final answer under the input
+        st.markdown(f"<div class='ans'>{ss[f'{key}_answer']}</div>", unsafe_allow_html=True)
+
+        # Reset button at the bottom
+        if st.button("Make a new question", use_container_width=True, key=f"{key}_reset"):
+            ss[f"{key}_phase"] = "idle"
+            ss[f"{key}_q"] = ""
+            ss[f"{key}_answer"] = ""
+            ss[f"{key}_ctx"] = ""
+            st.rerun()
+
+
+# --- render the sidebar (always available) ---
+with st.sidebar:
+    if "df_tab3" in locals() and isinstance(df_tab3, pd.DataFrame) and not df_tab3.empty:
+        sidebar_chat_single_turn(df_tab3)
+    else:
+        st.header("🤓 Ask PAI")
+        st.info("Load df_tab3 to enable chat.")
 
 # ================================================
 # APP FOOTER
