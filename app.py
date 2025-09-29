@@ -53,6 +53,19 @@ st.markdown(
     .stMultiSelect [data-baseweb="list"] div[role="option"] {
         font-size: 13px !important;
     }
+        /* Target sidebar headers */
+    [data-testid="stSidebar"] {
+        background-color: #306F82;   /* Blue Green */
+        color: white !important;        
+    }
+    /* Add text right after the sidebar toggle chevron */
+    header [data-testid="collapsedControl"]::after {
+        content: "  💬 Talk to an AI Assistant";
+        font-weight: 600;
+        font-size: 15px;
+        color: #0078ff;
+        vertical-align: middle;
+    }
     """,
     unsafe_allow_html=True
 )
@@ -568,21 +581,8 @@ with reviews_tab:
 # CHAT LLM (SIDEBAR)
 # ================================================
 
-st.markdown(
-    """
-    <style>
-    /* Target sidebar headers */
-    [data-testid="stSidebar"] {
-        background-color: #306F82;   /* Blue Green */
-        color: white !important;        
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
 OPENAI_MODEL = "gpt-4o-mini"
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
 
 # -------------------------------------------------
 # LLM helpers
