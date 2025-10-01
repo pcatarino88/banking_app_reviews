@@ -21,7 +21,7 @@ st.set_page_config(
     page_title="Banking App Reviews",
     page_icon="📱",
     layout="wide",
-    initial_sidebar_state="auto"
+    initial_sidebar_state="collapsed"
 )
 
 st.markdown(
