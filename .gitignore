@@ -12,5 +12,9 @@ venv/
 .DS_Store
 Thumbs.db
 
+# ---- intermediate dfs and model parameters ----
+assets/intermediate_dfs/
+assets/model/
+
 # ---- Streamlit secrets (if you add them later) ----
 .streamlit/secrets.toml
