@@ -724,30 +724,30 @@ def sidebar_chat_single_turn(df_tab3: pd.DataFrame, key: str = "sidebar-single")
     # small CSS tweak for compact look
     st.markdown("""
     <style>
-      /* tighten the card around the input area */
-      .ask-wrap { 
-        border-radius: 5px;
-        padding: 8px 10x 10px;   /* smaller padding = less space to the border */
-        margin-bottom: 10px;
-      }
-      .hint { font-size: 0.85rem; opacity: 0.85; margin: 0 0 6px 0; }
-      /* make the input taller and comfy */
-      [data-testid="stTextArea"] textarea {
-        min-height: 120px;    /* adjust height here */
-        line-height: 1.35;
-        padding: 10px 12px;   /* inner padding of the black box */
-        color: white;         /* text color */            
-      }
-    /* Text color inside the textarea */
-    [data-testid="stTextArea"] textarea {
-        color: #1A1818 !important;   /* typed text */
-        background: #ffffff !important;  /* box background */
-        font-size: 1rem !important;  
-    }
-    /* Placeholder text color */
-    [data-testid="stTextArea"] textarea::placeholder {
-        color: #999999 !important;   /* placeholder */                
-    .ans { font-size: 0.98rem; line-height: 1.5; }
+    
+        /* Card Area Format */
+        .ask-wrap { 
+            border-radius: 5px;
+            padding: 8px 10x 10px;   /* smaller padding = less space to the border */
+            margin-bottom: 10px;
+        }
+        .hint { font-size: 0.85rem; opacity: 0.85; margin: 0 0 6px 0; }
+                
+        /* Text Area Format */
+        [data-testid="stTextArea"] textarea {
+            min-height: 120px;    /* adjust height here */
+            line-height: 1.35;
+            padding: 10px 12px;   /* inner padding of the black box */
+            color: #1A1818 !important;
+            font-size: 1rem !important;           
+        }
+        
+        /* Placeholder Color */
+        [data-testid="stTextArea"] textarea::placeholder {
+            color: #999999 !important;
+        }
+                
+        .ans { font-size: 0.98rem; line-height: 1.5; }
     </style>
     """, unsafe_allow_html=True)
 
