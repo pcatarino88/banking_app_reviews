@@ -850,7 +850,7 @@ st.markdown(
     style="color:#0a66c2; text-decoration:underline;">
     Pedro Catarino
     </a><br>
-    Data source: Google Play Store reviews. Last Update: 4th September 2025.
+    Data source: Google Play Store reviews. Last Update: 6th September 2025.
 </div>
     """,
     unsafe_allow_html=True
