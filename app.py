@@ -661,11 +661,20 @@ def _rows_to_bullets(rows: pd.DataFrame, max_rows: int = 12, max_text: int = 260
     out = []
     for _, r in rows.iterrows():
         rid = int(r["row_id"]) if pd.notna(r["row_id"]) else -1
-        date_str = str(r["review_date"])[:10] if pd.notna(r["review_date"]) else "NA"
+        # robust date
+        date_val = r["review_date"]
+        date_str = getattr(date_val, "isoformat", lambda: str(date_val))()
+        if date_str == "NaT":
+            date_str = "NA"
+        # score as clean string
+        score_val = r.get("score", None)
+        score_str = "NA" if pd.isna(score_val) else str(int(score_val)) if float(score_val).is_integer() else f"{score_val:.1f}"
+        # one-line snippet
+        txt = str(r["review_text"]).replace("\n", " ").strip()
+        if len(txt) > max_text:
+            txt = txt[:max_text-1] + "…"
         app = str(r["app"])
-        score = r["score"]
-        txt = str(r["review_text"])[:max_text]
-        out.append(f"- [row_id={rid}] {date_str} | {app} | score={score} :: {txt}")
+        out.append(f"- [row_id={rid}] {date_str} | {app} | score={score_str} :: {txt}")
     return "\n".join(out)
 
 def ask_llm_openai(question: str, context_bullets: str):
