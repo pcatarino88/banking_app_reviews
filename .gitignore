@@ -16,5 +16,5 @@ Thumbs.db
 assets/intermediate_dfs/
 assets/model/
 
-# ---- Streamlit secrets (if you add them later) ----
+# ---- Streamlit secrets ----
 .streamlit/secrets.toml
