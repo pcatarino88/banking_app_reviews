@@ -2,16 +2,21 @@ import pandas as pd
 import numpy as np
 import re
 
-def cleaning(df_raw: pd.DataFrame):
-    """Clean raw Google Play reviews into a consistent schema."""
-    df = df_raw.copy()
+# MISSING: REMOVE INPUT AND OUPUT PATHS, PASS DF DIRECTLY
+
+def cleaning(input_path="../assets/intermediate_dfs/df_raw.parquet",
+             output_path="../assets/intermediate_dfs/df_clean.parquet"):
+    """
+    Loads df_raw from input path, cleans it into a consistent schema and saves df_clean in output path. 
+    Removes reviews prior to date 2019-01-01.
+    """
+    df = pd.read_parquet(input_path)
 
     # Drop columns we don't keep
-    if 'user_name' in df.columns:
-        df = df.drop(columns=['user_name'])
-
+    df = df.drop(columns = ['user_name', 'app_id','reviewId'])
+    
     # Create sequential review_id starting at 1
-    df.insert(0, 'review_id', np.arange(1, 1 + len(df), dtype='int32'))
+    df.insert(0, 'ID', np.arange(1, 1 + len(df), dtype='int32'))
 
     # Parse date columns
     for c in ['date', 'Reply_Date']:
@@ -24,6 +29,7 @@ def cleaning(df_raw: pd.DataFrame):
     df['replied'] = reviews['Reply'].notna().astype('int8')
     
     # Create 'time_to_reply(h)'
+    df['date'] = df['date'].dt.tz_localize(None) # remove timezone info to avoid errors
     delta = df['Reply_Date'] - df['date']
     df['time_to_reply(h)'] = (delta.dt.total_seconds() / 3600).round(2)
     
@@ -48,7 +54,7 @@ def cleaning(df_raw: pd.DataFrame):
         'Reply_Date': 'reply_date',
     }
     df = df.rename(columns=colmap)
-
+    
     # --- text cleaning (creates *_clean) ---
     def _clean_text(x):
         if not isinstance(x, str):
@@ -61,13 +67,20 @@ def cleaning(df_raw: pd.DataFrame):
     df['review_text_clean'] = df['review_text'].map(_clean_text)
     
     df['reply_text_clean']  = df['reply_text'].map(_clean_text)
+
+    # Drop reviews prior to 2019-01-01
+    df = df.loc[df["review_date"] >= pd.Timestamp("2019-01-01")].copy()
     
     # Reorder columns; keep any others at the end
     new_order = [
-        'review_id', 'app', 'score','review_text','review_text_clean','review_date','year','thumbs_up','replied','reply_text',
+        'ID', 'app', 'score','review_text','review_text_clean','review_date','year','thumbs_up','replied','reply_text',
         'reply_text_clean','reply_date','time_to_reply(h)','app_version_head','app_version_detail'
     ]
 
     df = df[new_order]
+
+    # --- Save Final Dataframe ---
+    df.to_parquet(output_path, index=False)
+    print(f"✅ Cleaned data saved to {output_path}")
 
     return df

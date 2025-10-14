@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 import altair as alt
 import plotly.graph_objects as go
-from reviews_core import get_sample
+from reviews_core.get_sample import get_sample
 from openai import OpenAI
 
 
