@@ -1,5 +1,6 @@
 # ---- Jupyter ----
 .ipynb_checkpoints/
+.ipynb_checkpoints/** */
 
 # ---- Virtual environments ----
 .env
@@ -14,7 +15,9 @@ Thumbs.db
 
 # ---- intermediate dfs and model parameters ----
 assets/intermediate_dfs/
-assets/model/
+assets/intermediate_dfs/** */
+assets/models/
+assets/models/** */
 
 # ---- Streamlit secrets ----
 .streamlit/secrets.toml
