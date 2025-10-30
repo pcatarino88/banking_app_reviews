@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 from reviews_core.get_sample import get_sample
 from reviews_core.word_cloud import generate_wordcloud, stop_words
 from openai import OpenAI
+from streamlit.components.v1 import html
 
 
 # -------------------------------
@@ -517,24 +518,6 @@ with topics_tab:
         
         st.plotly_chart(fig, use_container_width=True)
 
-    # Botão para exportar a página via diálogo de impressão do browser
-    st.markdown("""
-    <style>
-    /* Esconder elementos do Streamlit quando for imprimir */
-    @media print {
-    header, footer, .stApp [data-testid="stSidebar"], [data-testid="stToolbar"] { display: none !important; }
-    .main .block-container { padding: 0 !important; }
-    @page { size: A4; margin: 12mm; }
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="display:flex; gap:8px;">
-    <button onclick="window.print()">📄 Guardar página em PDF</button>
-    </div>
-    """, unsafe_allow_html=True)
-
     # ------------------
     # Tab 2 Footer
     # ------------------
@@ -551,6 +534,24 @@ with topics_tab:
     )  
 
 
+    # CSS para limpar a página quando imprimir
+    st.markdown("""
+    <style>
+    @media print {
+    header, footer, [data-testid="stSidebar"], [data-testid="stToolbar"] { display: none !important; }
+    .main .block-container { padding: 0 !important; }
+    @page { size: A4; margin: 12mm; }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Botão com JS dentro de um componente
+    html("""
+    <div style="display:flex; gap:8px;">
+        <button style="padding:8px 12px; font-size:14px; border-radius:8px; cursor:pointer;"
+                onclick="window.print()">📄 Save report in PDF</button>
+    </div>
+    """, height=60)
 # -------------------------------
 # Tab 3 SEARCH REVIEWS
 # -------------------------------
