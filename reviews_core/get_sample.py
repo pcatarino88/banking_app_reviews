@@ -32,12 +32,12 @@ def get_sample(
         filtered = filtered[m]
         
     # --- Prioritized sampling ----------------------------------------------------
-    prob = filtered['bert_macro_label'].astype(float)
+    prob = filtered['bert_probs'].astype(float)
     txtlen = filtered['review_text'].astype(str).str.len()
 
     # Priority tresholds
-    high = filtered[(prob >= 0.50) & (txtlen >= 100)]
-    mid  = filtered[(prob >= 0.50) & (txtlen >= 60) % (txtlen < 100)]
+    high = filtered[(prob >= 0.15) & (txtlen >= 100)]
+    mid  = filtered[(prob >= 0.15) & (txtlen >= 60) % (txtlen < 100)]
 
     mid  = mid.loc[~mid.index.isin(high.index)]
     low  = filtered.loc[~filtered.index.isin(high.index.union(mid.index))]
@@ -68,6 +68,6 @@ def get_sample(
     out = pd.concat(parts, ignore_index=True) if parts else filtered.iloc[0:0]
 
     # Return only requested columns
-    cols = ['app', 'review_text', 'score', 'review_date', 'bert_macro_label', 'bert_probs']
+    cols = ['app', 'review_text', 'score', 'review_date', 'bert_macro_label', 'bert_label', 'bert_probs']
     cols = [c for c in cols if c in out.columns]
     return out[cols]

@@ -434,7 +434,7 @@ with reviews_tab:
     df_tab3 = load_df("assets/df_topic.parquet", cols=cols_tab3)
     
     # --- Filters row ---------------------------
-    c1, s1, c2, s2, c3 = st.columns([1, 0.1, 2, 0.1, 2])
+    c1, s1, c2, s2, c3, s3, c4 = st.columns([1, 0.1, 2, 0.1, 2, 0.1, 2])
 
     # Type of review - default 'Negative'
     with c1:
@@ -454,6 +454,25 @@ with reviews_tab:
     with c3:
         topic_options = ["All"] + sorted([a for a in df_tab3["bert_macro_label"].dropna().astype(str).unique()])
         topic_sel = st.selectbox("Topic (optional)", topic_options, index=0)
+
+    # Subtopic select (optional)
+    with c4:
+        # Filter subtopics based on selected topic
+        if topic_sel != "All":
+            filtered_subtopics = df_tab3[df_tab3["bert_macro_label"] == topic_sel]["bert_label"].dropna().astype(str).unique()
+            subtopic_options = ["All"] + sorted(filtered_subtopics)
+            # Check if topic has more than one unique subtopic
+            has_multiple_subtopics = len(filtered_subtopics) > 1
+        else:
+            subtopic_options = ["All"] + sorted([a for a in df_tab3["bert_label"].dropna().astype(str).unique()])
+            has_multiple_subtopics = True  # Enable when "All" is selected
+        
+        subtopic_sel = st.selectbox(
+            "Subtopic (optional)", 
+            subtopic_options, 
+            index=0,
+            disabled=not has_multiple_subtopics
+        )
 
     st.write("")
 
@@ -489,6 +508,10 @@ with reviews_tab:
         # Topic filter
         if topic_sel != "All":
             df_filtered = df_filtered[df_filtered["bert_macro_label"].astype(str) == str(topic_sel)]
+        
+        # Subtopic filter
+        if subtopic_sel != "All":
+            df_filtered = df_filtered[df_filtered["bert_label"].astype(str) == str(subtopic_sel)]
 
         # Words filter with OR logic - supports multiple words to search with OR logic
         words = [w.strip() for w in re.split(r"[,\n;]+", words_raw) if w.strip()]
@@ -531,7 +554,9 @@ with reviews_tab:
                 c1.markdown(f"**App:** {r['app']}")
                 c2.markdown(f"**Score:** {r['score']}")
                 c3.markdown(f"**Date:** {r['review_date']}")
-                st.markdown(f"**Topic:** {r['bert_macro_label']}")
+                c4, c5 ,s6= st.columns([1, 1, 2])
+                c4.markdown(f"**Topic:** {r['bert_macro_label']}")
+                c5.markdown(f"**Subtopic:** {r['bert_label']}")
                 st.markdown(r["review_text"])  # full text, wrapped
             #st.write("")  # small spacer)
 
