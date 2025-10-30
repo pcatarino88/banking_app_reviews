@@ -517,6 +517,24 @@ with topics_tab:
         
         st.plotly_chart(fig, use_container_width=True)
 
+    # Botão para exportar a página via diálogo de impressão do browser
+    st.markdown("""
+    <style>
+    /* Esconder elementos do Streamlit quando for imprimir */
+    @media print {
+    header, footer, .stApp [data-testid="stSidebar"], [data-testid="stToolbar"] { display: none !important; }
+    .main .block-container { padding: 0 !important; }
+    @page { size: A4; margin: 12mm; }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="display:flex; gap:8px;">
+    <button onclick="window.print()">📄 Guardar página em PDF</button>
+    </div>
+    """, unsafe_allow_html=True)
+
     # ------------------
     # Tab 2 Footer
     # ------------------
