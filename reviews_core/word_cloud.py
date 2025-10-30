@@ -3,10 +3,14 @@ from wordcloud import WordCloud, STOPWORDS
 import matplotlib.pyplot as plt
 
 
-stop_words = set(STOPWORDS)
+CUSTOM_WORDS = {'app','santander','revolut','hsbc','lloyds',
+                'barclays','monzo','etc','much','bank', 'banking',
+                'use','still','want','need'}
+
+stop_words = STOPWORDS.union(CUSTOM_WORDS)
 
 
-def generate_wordcloud(df_filtered, stop_words, width=1000, height=250, 
+def generate_wordcloud(df_filtered, stop_words, width=1000, height=300, 
                        colormap='viridis', background_color='white'):
     """
     Generate and display a word cloud from filtered dataframe.
@@ -46,7 +50,8 @@ def generate_wordcloud(df_filtered, stop_words, width=1000, height=250,
         background_color=background_color,
         stopwords=stop_words,
         colormap=colormap,
-        collocations=False  # Avoid repeated phrases
+        collocations=False,  # Avoid repeated phrases
+        random_state=42
     ).generate(text)
     
     # Create figure

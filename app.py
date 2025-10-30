@@ -117,6 +117,7 @@ def palette_in_order(app_order: list[str], palette: dict[str, str]) -> list[str]
         colors.append(palette.get(app, next(fallback_cycle)))
     return colors
 
+
 # Brand colors (kept)
 BRAND_COLORS = {
     "Barclays": "#00AEEF",
@@ -144,7 +145,7 @@ COLOR_CYCLE = [
 # -------------------------------
 
 st.title("📱 App Reviews")
-c1,c2 = st.columns([6,2])
+c1, c2 = st.columns([6, 2])
 st.caption("Interactive analysis of App store reviews of UK banks")
 
 # Tabs
@@ -156,7 +157,7 @@ app_tab, topics_tab, reviews_tab = st.tabs(["App Ratings", "Key Topics", "Search
 with app_tab:
 
     # LOAD DF_TAB1
-    df_tab1= load_df("assets/df_tab1.parquet")        
+    df_tab1 = load_df("assets/df_tab1.parquet")
 
     # ----------------------------------
     # FILTERS 
@@ -335,7 +336,6 @@ with topics_tab:
             key="t2_time_period"
         )
     
-
     # --- Lightweight filtering ------------------------------
     mask = (
         df_tab2["app"].isin(sel_apps)
@@ -385,10 +385,10 @@ with topics_tab:
                 orientation = 'h',
                 name=topic,
                 marker_color=color_map[topic],
-                text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=7, ""),
+                text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=5, ""),
                 textposition="inside",
                 insidetextanchor="middle",
-                textfont=dict(size=10, color="white"),
+                textfont=dict(size=12, color="white"),
                 customdata=df_t["n"],
             )
         )
@@ -402,15 +402,120 @@ with topics_tab:
             xanchor="center", x=0.5,
             traceorder="normal",
             bgcolor="rgba(255,255,255,0.15)",
-            font_size= 10,
+            font_size=14,
             itemsizing="constant",        # makes marker a fixed size
             itemwidth=30,                 # width reserved for marker + spacing
-            tracegroupgap=0 
+            tracegroupgap=0
         ),
         margin=dict(l=5, r=5, t=30, b=60),
         height=520,
     )
     st.plotly_chart(fig, use_container_width=True)
+
+
+    # --- CHECK DETAILS OPTION --------------------------------
+    st.markdown("---")
+    st.subheader("🔍 Check the detailed subtopics")
+
+    # Create df_filtered with ALL columns for reuse
+    df_filtered = df_tab2.loc[mask]
+    # Create a chart for each macro label
+    macro_labels = ['Performance','User Experience','Products', 'Customer Service']
+    for macro in macro_labels:
+        st.write(f"### {macro}")
+        
+        # Filter data for this macro label
+        df_macro = df_filtered[df_filtered['bert_macro_label'] == macro]
+        
+        # Calculate total reviews per app
+        total_reviews_per_app = df_filtered.groupby('app').size()
+        
+        # Get unique subtopics for this macro label
+        subtopics = sorted(df_macro['bert_label'].dropna().unique())
+        
+        # Prepare data for plotting
+        data_for_chart = []
+        
+        for app in selected_apps:
+            df_app = df_filtered[df_filtered['app'] == app]
+            df_app_macro = df_app[df_app['bert_macro_label'] == macro]
+            
+            total_app_reviews = len(df_app)
+            
+            if total_app_reviews == 0:
+                continue
+            
+            # Calculate percentage for each subtopic
+            subtopic_data = {}
+            for subtopic in subtopics:
+                count = len(df_app_macro[df_app_macro['bert_label'] == subtopic])
+                percentage = (count / total_app_reviews) * 100
+                subtopic_data[subtopic] = percentage
+            
+            data_for_chart.append({
+                'app': app,
+                'subtopics': subtopic_data,
+                'total_percentage': sum(subtopic_data.values())
+            })
+        
+        # Create plotly figure
+        fig = go.Figure()
+        
+        # Add a trace for each subtopic
+        for idx, subtopic in enumerate(subtopics):
+            percentages = [item['subtopics'].get(subtopic, 0) for item in data_for_chart]
+            apps = [item['app'] for item in data_for_chart]
+            
+            # Create hover text
+            hover_text = [
+                f"{subtopic}<br>{app}<br>{pct:.1f}%" 
+                for app, pct in zip(apps, percentages)
+            ]
+            
+            fig.add_trace(go.Bar(
+                name=subtopic,
+                y=apps,
+                x=percentages,
+                orientation='h',
+                marker=dict(color=COLOR_CYCLE[idx % len(COLOR_CYCLE)]),
+                text=[f'{pct:.0f}%' if pct >= 0.05 else '' for pct in percentages],
+                textposition='inside',
+                insidetextanchor="middle",
+                textfont=dict(size=11, color="white"),                
+                hovertext=hover_text,
+                hoverinfo='text'
+            ))
+        
+        # Update layout
+        fig.update_layout(
+            barmode='stack',
+            height=max(200, len(selected_apps) * 60),
+            xaxis=dict(
+                title='Proportion of reviews',
+                tickformat='.0f',
+                ticksuffix='%',
+                range=[0, 60]
+            ),
+            yaxis=dict(title=''),
+            legend=dict(
+                orientation='h',
+                yanchor='bottom',
+                y=-0.4,
+                xanchor='center',
+                x=0.5,
+                title='',
+                font_size=14,
+            ),
+            margin=dict(l=100, r=20, t=20, b=100),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            font=dict(size=11)
+        )
+        
+        # Add gridlines
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+        
+        st.plotly_chart(fig, use_container_width=True)
 
     # ------------------
     # Tab 2 Footer
@@ -482,12 +587,13 @@ with reviews_tab:
     st.write("")
 
     # --- Generate Word Cloud ---------------------------
-    st.subheader("Topic Word Cloud")    
-    do_search = st.button("Generate Word Cloud", type="primary")
+    st.subheader("Topic Word Cloud") 
+    st.write("*Generate a word cloud for the selected filters.*")
+    do_search1 = st.button("Generate Word Cloud", type="primary", width=175)
 
     df_filtered = pd.DataFrame()  # initialize
 
-    if do_search:
+    if do_search1:
         df_filtered = df_tab3.copy()
 
         # Sentiment to score buckets
@@ -520,7 +626,8 @@ with reviews_tab:
 
     # --- Search Reviews ---------------------------
     st.subheader("Search Reviews")
-    do_search = st.button("Search Reviews", type="primary")
+    st.write("*Search reviews based on the selected filters and keywords.*")
+    do_search2 = st.button("Search Reviews", type="primary", width=175)
     st.write("")
 
     c4, s3, c5 = st.columns([4, 0.1, 1])
@@ -537,7 +644,7 @@ with reviews_tab:
 
     # --- Action button ---------------------------------------------------------
 
-    if do_search:
+    if do_search2:
         df_filtered = df_tab3.copy()
 
         # Sentiment to score buckets
