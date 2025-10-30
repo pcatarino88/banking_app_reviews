@@ -376,6 +376,9 @@ with topics_tab:
     order_map = {a:i for i,a in enumerate(x_order)}
 
     # --- Build figure (stacked 100%) ------------------------------------------
+    st.markdown("---")
+    st.subheader("🗂️ Topics mentioned")
+    
     fig = go.Figure()
     for topic in ordered_topics:
         df_t = ct[ct["bert_macro_label"]==topic].sort_values("app", key=lambda s: s.map(order_map))
@@ -533,8 +536,10 @@ with topics_tab:
         unsafe_allow_html=True
     )  
 
+    # ------------------
+    # Tab 2 Print Report
+    # ------------------
 
-    # CSS para limpar a página quando imprimir
     st.markdown("""
     <style>
     @media print {
@@ -546,13 +551,13 @@ with topics_tab:
     </style>
     """, unsafe_allow_html=True)
 
-    # Botão com JS dentro de um componente
     html("""
     <button style="padding:8px 12px; font-size:14px; border-radius:8px; cursor:pointer;"
             onclick="(parent && parent.window ? parent.window.print() : window.print())">
         📄 Save report in PDF
     </button>
     """, height=50)
+    
 # -------------------------------
 # Tab 3 SEARCH REVIEWS
 # -------------------------------
