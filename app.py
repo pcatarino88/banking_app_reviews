@@ -134,15 +134,6 @@ COLOR_CYCLE = [
 ]
 
 
-NEGATIVE_TOPICS = ["Login & Security","Payments & Cards","Updates & Crashes",
-                   "Transfers & Transact","Interface & Fees","Customer Support"]    
-
-
-POSITIVE_TOPICS = ["Usability","Features & Security","Transactions & Money Mgmt",
-                   "Investments","Cards & Travel","Updates & Support"]
-
-
-
 # -------------------------------
 # MAIN
 # -------------------------------
@@ -288,20 +279,19 @@ with app_tab:
 with topics_tab:
 
     # LOAD DF_TAB2
-    
-    cols_tab2 = ["app", "review_date", "score", "topic_label_SEG"]
-    df_tab2= load_df("assets/df_tab3.parquet", cols=cols_tab2)
+    cols_tab2 = ["app", "review_date", "score", "bert_macro_label", "bert_label"]
+    df_tab2 = load_df("assets/df_topic.parquet", cols=cols_tab2)
     
     # --- Light, memory-friendly dtypes
     df_tab2["review_date"]  = pd.to_datetime(df_tab2["review_date"], errors="coerce")
     df_tab2["score"] = pd.to_numeric(df_tab2["score"], errors="coerce").astype("Int64")
 
     # --- Categories reduce memory & speed up groupby
-    for c in ("app", "topic_label_SEG"):
+    for c in ("app", "bert_macro_label", "bert_label"):
         df_tab2[c] = df_tab2[c].astype("category")
-        
-    
-    # FILTERS 
+
+
+    # FILTERS
     c1, s1, c2, s2, c3 = st.columns([1, 0.1, 2, 0.1, 2])
 
     # --- Type of review filter | default 'Negative'
@@ -346,33 +336,32 @@ with topics_tab:
         df_tab2["app"].isin(sel_apps)
         & df_tab2["score"].isin(score_vals)
         & df_tab2["review_date"].between(pd.Timestamp(start_dt), pd.Timestamp(end_dt))
-        & df_tab2["topic_label_SEG"].notna()
-        & (df_tab2["topic_label_SEG"] != "Undefined")
+        & df_tab2["bert_macro_label"].notna()
     )
-    
-    view = df_tab2.loc[mask, ["app", "topic_label_SEG"]]
+
+    view = df_tab2.loc[mask, ["app", "bert_macro_label"]]
     if view.empty:
         st.info("No reviews match the current filters.")
         st.stop()
 
     # --- Prepare topic order & colors -----------------------------------------
     # Keep a stable topic order: use our color dict order where available, then any extras
-    topics_in_view = view["topic_label_SEG"].cat.remove_unused_categories().cat.categories.tolist()
+    topics_in_view = view["bert_macro_label"].cat.remove_unused_categories().cat.categories.tolist()
     ordered_topics = topics_in_view
 
     # Build a deterministic color map for the topics we actually have
     color_map = {t: COLOR_CYCLE[i % len(COLOR_CYCLE)] for i, t in enumerate(ordered_topics)}
     
     # Aggregate to proportions per app
-    ct = (view.groupby(["app", "topic_label_SEG"], observed=True)
+    ct = (view.groupby(["app", "bert_macro_label"], observed=True)
                 .size()
                 .rename("n")
                 .reset_index())
 
     # Ensure every (app, topic) pair exists -> aligned stacks
-    all_index = pd.MultiIndex.from_product([sel_apps, ordered_topics], names=["app", "topic_label_SEG"])
-    ct = ct.set_index(["app", "topic_label_SEG"]).reindex(all_index, fill_value=0).reset_index()
-    
+    all_index = pd.MultiIndex.from_product([sel_apps, ordered_topics], names=["app", "bert_macro_label"])
+    ct = ct.set_index(["app", "bert_macro_label"]).reindex(all_index, fill_value=0).reset_index()
+
     totals = ct.groupby("app", as_index=False)["n"].sum().rename(columns={"n":"total_n"})
     ct = ct.merge(totals, on="app", how="left")
     ct["pct"] = np.where(ct["total_n"]>0, ct["n"]/ct["total_n"]*100.0, 0.0)
@@ -383,7 +372,7 @@ with topics_tab:
     # --- Build figure (stacked 100%) ------------------------------------------
     fig = go.Figure()
     for topic in ordered_topics:
-        df_t = ct[ct["topic_label_SEG"]==topic].sort_values("app", key=lambda s: s.map(order_map))
+        df_t = ct[ct["bert_macro_label"]==topic].sort_values("app", key=lambda s: s.map(order_map))
         fig.add_trace(
             go.Bar(
                 x=df_t["pct"],
@@ -395,11 +384,6 @@ with topics_tab:
                 textposition="inside",
                 insidetextanchor="middle",
                 textfont=dict(size=10, color="white"),
-                hovertemplate=(
-                    topic + ": %{x:.1f}%<br>"
-                    + "Count: %{customdata}"
-                    + "<extra></extra>"
-                ),
                 customdata=df_t["n"],
             )
         )
@@ -445,9 +429,9 @@ with topics_tab:
 
 with reviews_tab:
 
-    # --- LOAD DF_TAB3 -------------------------
-
-    df_tab3 = load_df("assets/df_tab3.parquet")
+    # LOAD DF_TAB3
+    cols_tab3 = ["app", "review_date", "score", "review_text", "bert_macro_label", "bert_label", "bert_probs"]
+    df_tab3 = load_df("assets/df_topic.parquet", cols=cols_tab3)
     
     # --- Filters row ---------------------------
     c1, s1, c2, s2, c3 = st.columns([1, 0.1, 2, 0.1, 2])
@@ -468,11 +452,7 @@ with reviews_tab:
     
     # Topic select (optional)
     with c3:
-        if sentiment_t3 == "Negative":
-            topic_options = ["All"] + NEGATIVE_TOPICS
-        else:
-            topic_options = ["All"] + POSITIVE_TOPICS
-
+        topic_options = ["All"] + sorted([a for a in df_tab3["bert_macro_label"].dropna().astype(str).unique()])
         topic_sel = st.selectbox("Topic (optional)", topic_options, index=0)
 
     st.write("")
@@ -508,7 +488,7 @@ with reviews_tab:
 
         # Topic filter
         if topic_sel != "All":
-            df_filtered = df_filtered[df_filtered["topic_label_SEG"].astype(str) == str(topic_sel)]
+            df_filtered = df_filtered[df_filtered["bert_macro_label"].astype(str) == str(topic_sel)]
 
         # Words filter with OR logic - supports multiple words to search with OR logic
         words = [w.strip() for w in re.split(r"[,\n;]+", words_raw) if w.strip()]
@@ -551,7 +531,7 @@ with reviews_tab:
                 c1.markdown(f"**App:** {r['app']}")
                 c2.markdown(f"**Score:** {r['score']}")
                 c3.markdown(f"**Date:** {r['review_date']}")
-                st.markdown(f"**Topic:** {r['topic_label_SEG']}")
+                st.markdown(f"**Topic:** {r['bert_macro_label']}")
                 st.markdown(r["review_text"])  # full text, wrapped
             #st.write("")  # small spacer)
 
