@@ -378,7 +378,7 @@ with topics_tab:
     # --- Build figure (stacked 100%) ------------------------------------------
     st.markdown("---")
     st.subheader("🗂️ Topics mentioned")
-    
+
     fig = go.Figure()
     for topic in ordered_topics:
         df_t = ct[ct["bert_macro_label"]==topic].sort_values("app", key=lambda s: s.map(order_map))
@@ -419,7 +419,7 @@ with topics_tab:
 
     # --- CHECK DETAILS OPTION --------------------------------
     st.markdown("---")
-    st.subheader("🔍 Check detailed subtopics")
+    st.subheader("🔍 Detailed subtopics")
 
     # Create df_filtered with ALL columns for reuse
     df_filtered = df_tab2.loc[mask]
