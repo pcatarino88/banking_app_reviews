@@ -1,8 +1,5 @@
 from __future__ import annotations
-from datetime import datetime
-import io
 import os
-import requests
 import re
 import numpy as np
 import pandas as pd
@@ -10,6 +7,7 @@ import streamlit as st
 import altair as alt
 import plotly.graph_objects as go
 from reviews_core.get_sample import get_sample
+from reviews_core.word_cloud import generate_wordcloud, stop_words
 from openai import OpenAI
 
 
@@ -64,15 +62,18 @@ st.markdown(
 # II. Helpers
 # -------------------------------
 
+
 @st.cache_data 
 def load_df(path: str, cols: list[str] | None = None) -> pd.DataFrame:
     return pd.read_parquet(path, columns=cols)
 
+
 @st.cache_data(show_spinner=False)
 def rebin_from_month(df_monthly: pd.DataFrame, unit: str) -> pd.DataFrame:
     """
-    Rebin already-monthly data to Month/Quarter/Semester/Year without using resample,
-    to avoid MultiIndex concat issues on filtered categorical groups.
+    Rebin already-monthly data to Month/Quarter/Semester/Year 
+    without using resample, to avoid MultiIndex concat issues 
+    on filtered categorical groups.
     """
     freq_map = {"Month": "M", "Quarter": "Q", "Semester": "2Q", "Year": "Y"}
     freq = freq_map[unit]
@@ -87,12 +88,15 @@ def rebin_from_month(df_monthly: pd.DataFrame, unit: str) -> pd.DataFrame:
 
     out = (
         df.groupby(["app", "period"], observed=True)
-          .agg(avg_score=("avg_score", "mean"),
-               n_reviews=("n_reviews", "sum"))
-          .reset_index()
-          .sort_values(["period", "app"])
+        .agg(
+            avg_score=("avg_score", "mean"),
+            n_reviews=("n_reviews", "sum"),
+        )
+        .reset_index()
+        .sort_values(["period", "app"])
     )
     return out
+
 
 def build_brand_palette(apps: list[str]) -> dict[str, str]:
     palette = {}
@@ -104,6 +108,7 @@ def build_brand_palette(apps: list[str]) -> dict[str, str]:
             palette[app] = DEFAULT_CYCLE[idx % len(DEFAULT_CYCLE)]
             idx += 1
     return palette
+
 
 def palette_in_order(app_order: list[str], palette: dict[str, str]) -> list[str]:
     colors = []
@@ -476,9 +481,50 @@ with reviews_tab:
 
     st.write("")
 
-    # --- Search row ---------------------------
-    c4, s3, c5 = st.columns([4, 0.1, 1.5])
+    # --- Generate Word Cloud ---------------------------
+    st.subheader("Topic Word Cloud")    
+    do_search = st.button("Generate Word Cloud", type="primary")
 
+    df_filtered = pd.DataFrame()  # initialize
+
+    if do_search:
+        df_filtered = df_tab3.copy()
+
+        # Sentiment to score buckets
+        if sentiment_t3 == "Negative":
+            df_filtered = df_filtered[df_filtered["score"].isin([1, 2])]
+        else:  # Positive
+            df_filtered = df_filtered[df_filtered["score"].isin([4, 5])]
+
+        # App filter
+        if app_sel != "All":
+            df_filtered = df_filtered[df_filtered["app"].astype(str) == str(app_sel)]
+
+        # Topic filter
+        if topic_sel != "All":
+            df_filtered = df_filtered[df_filtered["bert_macro_label"].astype(str) == str(topic_sel)]
+        
+        # Subtopic filter
+        if subtopic_sel != "All":
+            df_filtered = df_filtered[df_filtered["bert_label"].astype(str) == str(subtopic_sel)]
+
+        # Generate and display
+        fig = generate_wordcloud(df_filtered, stop_words, colormap='viridis') #other colormap options: 'plasma', 'RdYlBu_r', 'coolwarm', 'Spectral'
+
+        if fig:
+            st.pyplot(fig)
+
+
+    # add grey line separator
+    st.markdown("---")
+
+    # --- Search Reviews ---------------------------
+    st.subheader("Search Reviews")
+    do_search = st.button("Search Reviews", type="primary")
+    st.write("")
+
+    c4, s3, c5 = st.columns([4, 0.1, 1])
+    
     with c4:
         words_raw = st.text_input(
             "Words to search (comma or semicolon separated)",
@@ -490,8 +536,7 @@ with reviews_tab:
     st.write("")
 
     # --- Action button ---------------------------------------------------------
-    do_search = st.button("Search Reviews", type="primary")
-        
+
     if do_search:
         df_filtered = df_tab3.copy()
 
