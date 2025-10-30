@@ -415,7 +415,7 @@ with topics_tab:
 
     # --- CHECK DETAILS OPTION --------------------------------
     st.markdown("---")
-    st.subheader("🔍 Check the detailed subtopics")
+    st.subheader("🔍 Check detailed subtopics")
 
     # Create df_filtered with ALL columns for reuse
     df_filtered = df_tab2.loc[mask]
