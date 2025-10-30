@@ -539,7 +539,8 @@ with topics_tab:
     <style>
     @media print {
     header, footer, [data-testid="stSidebar"], [data-testid="stToolbar"] { display: none !important; }
-    .main .block-container { padding: 0 !important; }
+    .main .block-container { padding: 0 !important; margin: 0 !important; }
+    .stApp { overflow: visible !important; }
     @page { size: A4; margin: 12mm; }
     }
     </style>
@@ -547,11 +548,11 @@ with topics_tab:
 
     # Botão com JS dentro de um componente
     html("""
-    <div style="display:flex; gap:8px;">
-        <button style="padding:8px 12px; font-size:14px; border-radius:8px; cursor:pointer;"
-                onclick="window.print()">📄 Save report in PDF</button>
-    </div>
-    """, height=60)
+    <button style="padding:8px 12px; font-size:14px; border-radius:8px; cursor:pointer;"
+            onclick="(parent && parent.window ? parent.window.print() : window.print())">
+        📄 Save report in PDF
+    </button>
+    """, height=50)
 # -------------------------------
 # Tab 3 SEARCH REVIEWS
 # -------------------------------
