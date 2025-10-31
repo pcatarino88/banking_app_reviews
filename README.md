@@ -52,32 +52,34 @@ To achieve this, I combined **text analytics**, **topic modeling**, and **intera
 
 ## 🧾 Project Structure
 
-├── assets/
-│ ├── intermediate_dfs/ # Where intermediate datasets
-│ ├── models/ # Where topic mdoels are stored
-│ ├── df_monthly.parquet # Monthly aggregated app statistics
-│ └── df_topic.parquet # Final topic modeling results
+```text
+assets/
+├── intermediate_dfs/          # Where intermediate datasets are stored
+├── models/                    # Where topic models are stored
+├── df_monthly.parquet         # Monthly aggregated app statistics
+├── df_topic.parquet           # Final topic modeling results
 │
-├── notebooks/
-│ ├── 1. Data Collection.ipynb
-│ ├── 2. Preprocessing and EDA.ipynb
-│ ├── 3. Sentiment Analysis.ipynb
-│ ├── 4.1. LDA Modelling.ipynb
-│ ├── 4.2. BERTopic Modelling.ipynb
-│ └── 5. Deployment.ipynb
+notebooks/
+├── 1. Data Collection.ipynb
+├── 2. Preprocessing and EDA.ipynb
+├── 3. Sentiment Analysis.ipynb
+├── 4.1. LDA Modelling.ipynb
+├── 4.2. BERTopic Modelling.ipynb
+└── 5. Deployment.ipynb
 │
-├── reviews_core/ # Custom Python scripts for scraping & processing
-│ ├── __init__.py
-│ ├── scraper.py # Scrape new reviews and (if it exists) consolidates with prior dataframe.
-│ ├── cleaning.py # Transform df_raw into df_clean.
-│ ├── word_cloud.py # Function that creates a word cloud considering the filters selected by the user.
-│ ├── get_sample.py # Function that returns a sample of 'n' reviews considering the filters selected by the user.
-│ └── pipeline.py  # Work in progress script to create an automatic pipeline to update the information.
+reviews_core/                  # Custom Python scripts for scraping & processing
+├── __init__.py
+├── scraper.py                 # Scrape new reviews and consolidate with existing data
+├── cleaning.py                # Transform df_raw into df_clean
+├── word_cloud.py              # Create a word cloud for selected filters
+├── get_sample.py              # Return a sample of reviews given user filters
+└── pipeline.py                # WIP: automatic pipeline for data updates
 │
-├── app.py # Streamlit dashboard
-├── requirements.txt # Python dependencies
-├── runtime.txt # Streamlit runtime version
-└── README.md # Project description
+app.py                         # Streamlit dashboard
+requirements.txt               # Python dependencies
+runtime.txt                    # Streamlit runtime version
+README.md                      # Project description
+```
 
 ## 🚀 How to Run
 
