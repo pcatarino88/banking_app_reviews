@@ -29,7 +29,7 @@ st.markdown(
     /* reduce the big top padding Streamlit applies */
     .block-container {
         padding-top: 1.5rem;
-        padding-bottom: 1rem;
+        padding-bottom: 1.0rem;
     }
     /* Adjust st.mnultiselect items size and font*/
     .stMultiSelect [data-baseweb="tag"],
@@ -285,23 +285,30 @@ with app_tab:
 
 with topics_tab:
 
-    # LOAD DF_TAB2
+    # ------------------
+    # Tab 2 Load & Helpers
+    # ------------------
+    
+    # Load df_tab2
     cols_tab2 = ["app", "review_date", "score", "bert_macro_label", "bert_label"]
     df_tab2 = load_df("assets/df_topic.parquet", cols=cols_tab2)
     
-    # --- Light, memory-friendly dtypes
+    # Light, memory-friendly dtypes
     df_tab2["review_date"]  = pd.to_datetime(df_tab2["review_date"], errors="coerce")
     df_tab2["score"] = pd.to_numeric(df_tab2["score"], errors="coerce").astype("Int64")
 
-    # --- Categories reduce memory & speed up groupby
+    # Categories reduce memory & speed up groupby
     for c in ("app", "bert_macro_label", "bert_label"):
         df_tab2[c] = df_tab2[c].astype("category")
 
 
-    # FILTERS
-    c1, s1, c2, s2, c3 = st.columns([1, 0.1, 2, 0.1, 2])
+    # ------------------
+    # Tab 2 Filters
+    # ------------------
 
-    # --- Type of review filter | default 'Negative'
+    c1, s1, c2, s2, c3, s3, c4 = st.columns([0.75, 0.1, 2.75, 0.1, 0.6, 0.04, 0.6])
+
+    # Type of review filter | default 'Negative'
     with c1:
         sentiment_t2 = st.segmented_control(
             "Type of reviews",
@@ -311,7 +318,7 @@ with topics_tab:
         )
         score_vals = [1, 2] if sentiment_t2 == "Negative" else [4, 5]
         
-    # --- Bank App Filter
+    # Bank App Filter
     with c2:
         apps = sorted(df_tab2["app"].dropna().unique().tolist())
         sel_apps = st.multiselect(
@@ -322,22 +329,17 @@ with topics_tab:
             key="t2_bank_app"
         )
     
-    # --- Time Period slider
-    with c3:        
-        min_dt = pd.to_datetime(df_tab2["review_date"].min())
-        max_dt = pd.to_datetime(df_tab2["review_date"].max())
-        default_start = max(min_dt, max_dt - pd.DateOffset(years=4))
-        start_dt, end_dt = st.slider(
-            "Time Period",
-            min_value=min_dt.to_pydatetime(),
-            max_value=max_dt.to_pydatetime(),
-            value=(default_start.to_pydatetime(), max_dt.to_pydatetime()),
-            format="YYYY-MM-DD",
-            help="Filter by review date.",
-            key="t2_time_period"
-        )
-    
-    # --- Lightweight filtering ------------------------------
+    # Time Period slider
+    min_dt = pd.to_datetime(df_tab2["review_date"]).min().date()
+    max_dt = pd.to_datetime(df_tab2["review_date"]).max().date()
+    default_start = max(min_dt, (max_dt - pd.DateOffset(years=4)).date())
+
+    with c3:
+        start_dt = st.date_input("Start date", value=default_start, min_value=min_dt, max_value=max_dt)
+    with c4:
+        end_dt = st.date_input("End date", value=max_dt, min_value=min_dt, max_value=max_dt)
+
+    # Lightweight filtering
     mask = (
         df_tab2["app"].isin(sel_apps)
         & df_tab2["score"].isin(score_vals)
@@ -350,13 +352,22 @@ with topics_tab:
         st.info("No reviews match the current filters.")
         st.stop()
 
-    # --- Prepare topic order & colors -----------------------------------------
+    # -- Prepare topic order & colors -----------------------------------------
     # Keep a stable topic order: use our color dict order where available, then any extras
     topics_in_view = view["bert_macro_label"].cat.remove_unused_categories().cat.categories.tolist()
     ordered_topics = topics_in_view
 
     # Build a deterministic color map for the topics we actually have
-    color_map = {t: COLOR_CYCLE[i % len(COLOR_CYCLE)] for i, t in enumerate(ordered_topics)}
+    color_map = {
+        "Customer Service": "#0072B2",
+        "Login & Authentication": "#E69F00",
+        "Money Management": "#337A65",
+        "Performance": "#D55E00",
+        "Products": "#CC79A7",
+        "Security & Close Account": "#8B4513",
+        "Travel & FX": "#56B4E9",
+        "User Experience": "#666666",
+    }
     
     # Aggregate to proportions per app
     ct = (view.groupby(["app", "bert_macro_label"], observed=True)
@@ -375,13 +386,24 @@ with topics_tab:
     x_order = sel_apps
     order_map = {a:i for i,a in enumerate(x_order)}
 
-    # --- Build figure (stacked 100%) ------------------------------------------
+    # ------------------
+    # Tab 2 Macro Topics
+    # ------------------
+
     st.markdown("---")
     st.subheader("🗂️ Topics mentioned")
+    st.write("*For each App, check the most relevant topics mentioned in reviews. Filter by type of review (positive or negative) and time period.*")
 
     fig = go.Figure()
     for topic in ordered_topics:
         df_t = ct[ct["bert_macro_label"]==topic].sort_values("app", key=lambda s: s.map(order_map))
+    
+        # create hover text
+        hover_text_graph1 = [
+            f"{topic}<br>{app}<br>{pct:.1f}%"
+            for app, pct in zip(df_t["app"], df_t["pct"])
+        ]
+
         fig.add_trace(
             go.Bar(
                 x=df_t["pct"],
@@ -389,35 +411,41 @@ with topics_tab:
                 orientation = 'h',
                 name=topic,
                 marker_color=color_map[topic],
-                text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=5, ""),
+                text=(df_t["pct"].round().astype(int).astype(str) + "%").where(df_t["pct"]>=2, ""),
                 textposition="inside",
                 insidetextanchor="middle",
-                textfont=dict(size=12, color="white"),
-                customdata=df_t["n"],
+                textfont=dict(size=14, color="white"),
+                hovertext=hover_text_graph1,                
+                hovertemplate="%{hovertext}<extra></extra>"
             )
         )
     
     fig.update_layout(
         barmode="stack",
         xaxis=dict(title="Proportion of reviews", range=[0, 100], ticksuffix="%", showgrid=True),
+        yaxis=dict(title="", tickfont=dict(size=14)),
         legend=dict(
+            title="Topics", 
             orientation="h",
-            yanchor="bottom", y=-0.4,
-            xanchor="center", x=0.5,
+            yanchor="bottom", y=-0.35,
+            xanchor="left", x=0.0,
             traceorder="normal",
             bgcolor="rgba(255,255,255,0.15)",
-            font_size=14,
+            font_size=15,
             itemsizing="constant",        # makes marker a fixed size
             itemwidth=30,                 # width reserved for marker + spacing
             tracegroupgap=0
         ),
-        margin=dict(l=5, r=5, t=30, b=60),
-        height=520,
+        margin=dict(l=5, r=5, t=20, b=60),
+        height=480,
     )
     st.plotly_chart(fig, use_container_width=True)
 
 
-    # --- CHECK DETAILS OPTION --------------------------------
+    # ------------------
+    # Tab 2 Detailed Subtopics
+    # ------------------
+
     st.markdown("---")
     st.subheader("🔍 Detailed subtopics")
 
@@ -426,7 +454,7 @@ with topics_tab:
     # Create a chart for each macro label
     macro_labels = ['Performance','User Experience','Products', 'Customer Service']
     for macro in macro_labels:
-        st.write(f"### {macro}")
+        st.write(f"#### {macro}")
         
         # Filter data for this macro label
         df_macro = df_filtered[df_filtered['bert_macro_label'] == macro]
@@ -482,10 +510,10 @@ with topics_tab:
                 x=percentages,
                 orientation='h',
                 marker=dict(color=COLOR_CYCLE[idx % len(COLOR_CYCLE)]),
-                text=[f'{pct:.0f}%' if pct >= 0.05 else '' for pct in percentages],
+                text=[f'{pct:.0f}%' if pct >= 0.1 else '' for pct in percentages],
                 textposition='inside',
                 insidetextanchor="middle",
-                textfont=dict(size=11, color="white"),                
+                textfont=dict(size=12, color="white"),                
                 hovertext=hover_text,
                 hoverinfo='text'
             ))
@@ -493,7 +521,7 @@ with topics_tab:
         # Update layout
         fig.update_layout(
             barmode='stack',
-            height=max(200, len(selected_apps) * 60),
+            height=max(200, len(selected_apps) * 62),
             xaxis=dict(
                 title='Proportion of reviews',
                 tickformat='.0f',
@@ -505,15 +533,15 @@ with topics_tab:
                 orientation='h',
                 yanchor='bottom',
                 y=-0.4,
-                xanchor='center',
-                x=0.5,
-                title='',
+                xanchor='left',
+                x=0.0,
+                title='Subtopics',
                 font_size=14,
             ),
             margin=dict(l=100, r=20, t=20, b=100),
             plot_bgcolor='white',
             paper_bgcolor='white',
-            font=dict(size=11)
+            font=dict(size=12)
         )
         
         # Add gridlines
@@ -527,9 +555,13 @@ with topics_tab:
     st.write("")
     st.markdown(
         """
-    <div style="text-align:left; color: gray; font-size: 10px; margin-left:10px; margin-top:5px;">
-        Notes: Proportions are within each app (stacked to 100%). ‘Positive’ uses scores 4–5 and ‘Negative’ uses scores 1–2. 
-        Reviews that were not possible to allocate to a specific topic were removed from this analysis.
+    <div style="text-align:left; color: gray; font-size: 12px; margin-left:10px; margin-top:5px;">
+        Notes: </a><br>
+        - Percentage values represent the number of reviews assigned for each topic/category 
+        divided by the total number of reviews for the respective bank apps according to the selected filters. </a><br>
+        - ‘Positive’ reviews consider reviews with scores 4 and 5. ‘Negative’ reviews consider scores 1 and 2. </a><br>
+        - Reviews that were not possible to allocate to a specific topic (e.g., too short or to broad reviews) 
+        were removed from this analysis.
         </a><br>
     </div>
         """,
@@ -546,10 +578,12 @@ with topics_tab:
     header, footer, [data-testid="stSidebar"], [data-testid="stToolbar"] { display: none !important; }
     .main .block-container { padding: 0 !important; margin: 0 !important; }
     .stApp { overflow: visible !important; }
-    @page { size: A4; margin: 12mm; }
+    html { zoom: 0.50; }
+    @page { size: A4; margin-top: 20mm; margin-bottom: 20mm; margin-left: 10mm; margin-right: 10mm; }
     }
     </style>
     """, unsafe_allow_html=True)
+
 
     html("""
     <button style="padding:8px 12px; font-size:14px; border-radius:8px; cursor:pointer;"
@@ -652,20 +686,20 @@ with reviews_tab:
     # --- Search Reviews ---------------------------
     st.subheader("Search Reviews")
     st.write("*Search reviews based on the selected filters and keywords.*")
-    do_search2 = st.button("Search Reviews", type="primary", width=175)
-    st.write("")
 
-    c4, s3, c5 = st.columns([4, 0.1, 1])
+    c4, s3, c5 = st.columns([3, 0.1, 1])
     
     with c4:
         words_raw = st.text_input(
-            "Words to search (comma or semicolon separated)",
+            "Optional: Words to search (comma separated)",
             placeholder="e.g., fees, login, customer service"
         )
     with c5:
         n_reviews = st.number_input("Number of reviews", min_value=1, max_value=10, value=5, step=1, help="Select number reviews to display" )
 
     st.write("")
+
+    do_search2 = st.button("Search Reviews", type="primary", width=175)
 
     # --- Action button ---------------------------------------------------------
 
