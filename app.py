@@ -68,37 +68,6 @@ st.markdown(
 def load_df(path: str, cols: list[str] | None = None) -> pd.DataFrame:
     return pd.read_parquet(path, columns=cols)
 
-
-@st.cache_data(show_spinner=False)
-def rebin_from_month(df_monthly: pd.DataFrame, unit: str) -> pd.DataFrame:
-    """
-    Rebin already-monthly data to Month/Quarter/Semester/Year 
-    without using resample, to avoid MultiIndex concat issues 
-    on filtered categorical groups.
-    """
-    freq_map = {"Month": "M", "Quarter": "Q", "Semester": "2Q", "Year": "Y"}
-    freq = freq_map[unit]
-
-    df = df_monthly.copy()
-
-    # make sure 'app' isn't categorical to avoid pandas concat bugs
-    df["app"] = df["app"].astype(str)
-
-    # build the target period and aggregate
-    df["period"] = df["period_month"].dt.to_period(freq).dt.start_time
-
-    out = (
-        df.groupby(["app", "period"], observed=True)
-        .agg(
-            avg_score=("avg_score", "mean"),
-            n_reviews=("n_reviews", "sum"),
-        )
-        .reset_index()
-        .sort_values(["period", "app"])
-    )
-    return out
-
-
 def build_brand_palette(apps: list[str]) -> dict[str, str]:
     palette = {}
     idx = 0
@@ -156,8 +125,12 @@ app_tab, topics_tab, reviews_tab = st.tabs(["App Ratings", "Key Topics", "Search
 # ===============================
 with app_tab:
 
+    # ----------------------------------
+    # LOAD
+    # ----------------------------------
+
     # LOAD DF_TAB1
-    df_tab1 = load_df("assets/df_tab1.parquet")
+    df_tab1 = load_df("assets/df_monthly.parquet")
 
     # ----------------------------------
     # FILTERS 
@@ -191,7 +164,7 @@ with app_tab:
             help="Select preferred time unit: Month, Quarter, Semester or Year."
         )
 
-    # Apply filters on the monthly DF
+    # ---- Apply filters on the monthly DF
     mask = (
         df_tab1["period_month"].between(pd.Timestamp(start_dt), pd.Timestamp(end_dt))
         & (df_tab1["app"].isin(selected_apps) if selected_apps else True)
@@ -202,14 +175,36 @@ with app_tab:
         st.info("No data for the selected filters.")
         st.stop()
 
-    # Rebin Month -> selected unit (keeps table small)
-    agg = rebin_from_month(df_f, unit)
-
     # --- BLANK SPACING
     st.write("")     
 
+
     # ----------------------------------
-    # KPIs
+    # Calculate aggregated results for the selected time unit
+    # ----------------------------------
+ 
+    freq_map = {
+        "Month":    "MS",        # month start
+        "Quarter":  "QS",        # quarter start (Jan/Apr/Jul/Oct)
+        "Semester": "2QS-JAN",   # two-quarters per period: Jan–Jun, Jul–Dec
+        "Year":     "YS",        # year start (Jan 1)
+    }
+
+    freq = freq_map[unit]
+
+    agg = (
+        df_f.rename(columns={"period_month": "period"})
+            .assign(period=lambda d: pd.to_datetime(d["period"]))
+            .assign(wscore=lambda d: d["avg_score"] * d["n_reviews"])
+            .groupby([pd.Grouper(key="period", freq=freq), "app"], as_index=False)
+            .agg(n_reviews=("n_reviews", "sum"),
+                wscore=("wscore", "sum"))
+            .assign(avg_score=lambda d: d["wscore"] / d["n_reviews"])
+            .drop(columns="wscore")
+    )
+
+    # ----------------------------------
+    # General KPIs
     # ----------------------------------
     
     s1, k1, k2, s2 = st.columns(4)
@@ -228,21 +223,15 @@ with app_tab:
     # Plot Graph
     # ----------------------------------
 
-    palette = build_brand_palette(sorted(df_f["app"].dropna().unique().tolist()))
+    fmt = {"Month":"%b/%y","Quarter":"%b/%y","Semester":"%b/%y","Year":"%Y"}[unit]
     latest = agg.sort_values("period").groupby("app", as_index=False).tail(1)
     legend_order = latest.sort_values("avg_score", ascending=False)["app"].tolist()
-    color_range = palette_in_order(legend_order, palette)
+    color_range = [BRAND_COLORS[app] for app in legend_order]
 
     base = alt.Chart(agg).mark_line(point=True).encode(
-        x=alt.X(
-            "period:T",
-            title="Time",
-            axis=alt.Axis(
-                format="%b/%y",        # e.g., Oct/24
-                labelAngle=0,          # keep labels horizontal
-                labelOverlap=True
-            ),
-        ),
+        x=alt.X('yearmonth(period):T',
+                title='Time',
+                axis=alt.Axis(format='%b/%y', labelAngle=0, labelOverlap=True)),
         y=alt.Y("avg_score:Q", title="Average rating"),
         color=alt.Color(
             "app:N",
@@ -259,9 +248,10 @@ with app_tab:
                 symbolSize=80),
         ),
         tooltip=[
-            alt.Tooltip("period:T", title="Period"),
-            alt.Tooltip("app:N", title="App"),
-            alt.Tooltip("avg_score:Q", title="Avg. rating", format=".2f"),
+            alt.Tooltip('period:T', title='Period', format=fmt),
+            alt.Tooltip('app:N', title='App'),
+            alt.Tooltip('avg_score:Q', title='Avg. rating', format='.2f'),
+            alt.Tooltip('n_reviews:Q', title='# Reviews')
         ],
     ).properties(height=420)
 
@@ -275,8 +265,9 @@ with app_tab:
     st.write("")
     st.markdown(
         """
-    <div style="text-align:left; color: gray; font-size: 10px; margin-left:10px; margin-top:5px;">
-        Note: Ratings for each time unit are simple averages of the monthly averages - i.e., not weighted by review counts.
+    <div style="text-align:left; color: gray; font-size: 12px; margin-left:10px; margin-top:5px;">
+        Note: Ratings for each time unit are weighted averages, taking into account both the average 
+        score and the number of reviews within that period.
         </a><br>
     </div>
         """,
@@ -1068,16 +1059,19 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# variable with the last review date
+last_review_date = df_tab3["review_date"].max().strftime("%d %B %Y")
+
 # Footer note
 st.markdown(
-    """
+    f"""
 <div style="text-align:left; color: gray; font-size: 12px; margin-left:10px; margin-top:0px;">
     Developed by 
     <a href="https://www.linkedin.com/in/pedrofcatarino/" target="_blank"
     style="color:#0a66c2; text-decoration:underline;">
     Pedro Catarino
     </a><br>
-    Data source: Google Play Store reviews. Last Update: 6th October 2025.
+    Data source: Google Play Store reviews. Last Update: {last_review_date}.
 </div>
     """,
     unsafe_allow_html=True
