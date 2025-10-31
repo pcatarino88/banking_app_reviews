@@ -579,7 +579,7 @@ with topics_tab:
     .main .block-container { padding: 0 !important; margin: 0 !important; }
     .stApp { overflow: visible !important; }
     html { zoom: 0.50; }
-    @page { size: A4; margin-top: 20mm; margin-bottom: 20mm; margin-left: 10mm; margin-right: 10mm; }
+    @page { size: A4; margin-top: 20mm; margin-bottom: 30mm; margin-left: 10mm; margin-right: 10mm; }
     }
     </style>
     """, unsafe_allow_html=True)
