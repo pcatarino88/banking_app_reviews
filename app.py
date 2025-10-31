@@ -119,14 +119,13 @@ def palette_in_order(app_order: list[str], palette: dict[str, str]) -> list[str]
     return colors
 
 
-# Brand colors (kept)
+# Brand colors
 BRAND_COLORS = {
     "Barclays": "#00AEEF",
-    "HSBC": "#FF4D4D",
-    "Lloyds": "#005A2B",
+    "HSBC": "#F08D3C",
+    "Lloyds": "#11703F",
     "Monzo": "#14233C",
-    "Revolut": "#001A72",
-    "Santander UK": "#EC0000",
+    "Revolut": "#7D4CAC",
     "Santander": "#EC0000",
 }
 
@@ -163,7 +162,7 @@ with app_tab:
     # ----------------------------------
     # FILTERS 
     # ----------------------------------
-    c1, c2, c3, c4, c5 = st.columns([2, 0.1, 2, 0.1, 1])
+    c1, s1, c2, s2, c3, s3, c4 = st.columns([2, 0.1, 1, 0.05, 1, 0.1, 1])
 
     # Bank Filter
     with c1:
@@ -173,22 +172,18 @@ with app_tab:
             help="Choose one or more apps/banks."
         )
 
-    # Time Period slider
-    with c3: 
-        min_date = df_tab1["period_month"].min()
-        max_date = df_tab1["period_month"].max()
-        default_start = max(min_date, max_date - pd.DateOffset(years=4))
-        start_date, end_date = st.slider(
-            "Time Period",
-            min_value=min_date.to_pydatetime(),
-            max_value=max_date.to_pydatetime(),
-            value=(default_start.to_pydatetime(), max_date.to_pydatetime()),
-            format="YYYY-MM-DD",
-            help="Filter by review date."
-        )
+    # Time Period - start and end date
+    min_dt = pd.to_datetime(df_tab1["period_month"]).min().date()
+    max_dt = pd.to_datetime(df_tab1["period_month"]).max().date()
+    default_start = max(min_dt, (max_dt - pd.DateOffset(years=4)).date())
+
+    with c2:
+        start_dt = st.date_input("Start date", value=default_start, min_value=min_dt, max_value=max_dt)
+    with c3:
+        end_dt = st.date_input("End date", value=max_dt, min_value=min_dt, max_value=max_dt)
 
     # Time Unit 
-    with c5:
+    with c4:
         unit = st.selectbox(
             "Time Unit",
             options=["Month", "Quarter", "Semester", "Year"],
@@ -198,7 +193,7 @@ with app_tab:
 
     # Apply filters on the monthly DF
     mask = (
-        df_tab1["period_month"].between(pd.Timestamp(start_date), pd.Timestamp(end_date))
+        df_tab1["period_month"].between(pd.Timestamp(start_dt), pd.Timestamp(end_dt))
         & (df_tab1["app"].isin(selected_apps) if selected_apps else True)
     )
     df_f = df_tab1.loc[mask].copy()
@@ -213,17 +208,26 @@ with app_tab:
     # --- BLANK SPACING
     st.write("")     
 
-    # KPIs (use review counts from agg and weighted mean for rating)
+    # ----------------------------------
+    # KPIs
+    # ----------------------------------
+    
+    s1, k1, k2, s2 = st.columns(4)
+    
+    # Total number of reviews
     total_reviews = int(agg["n_reviews"].sum())
+    k1.metric("Total number of reviews:", f"{total_reviews:,}")
+    
+    # Average rating
     weighted_avg = (
         (agg["avg_score"] * agg["n_reviews"]).sum() / max(total_reviews, 1)
     )
-
-    k1, k2, k3, k4 = st.columns(4)
-    k2.metric("Reviews (filtered)", f"{total_reviews:,}")
-    k3.metric("Avg. rating", f"{weighted_avg:.2f} / 5")
+    k2.metric("Average rating", f"{weighted_avg:.2f} / 5")
     
-    # Chart (Altair)
+    # ----------------------------------
+    # Plot Graph
+    # ----------------------------------
+
     palette = build_brand_palette(sorted(df_f["app"].dropna().unique().tolist()))
     latest = agg.sort_values("period").groupby("app", as_index=False).tail(1)
     legend_order = latest.sort_values("avg_score", ascending=False)["app"].tolist()
@@ -645,7 +649,11 @@ with reviews_tab:
 
     st.write("")
 
-    # --- Generate Word Cloud ---------------------------
+    # ------------------
+    # Tab 3 Generate Word Cloud
+    # ------------------
+
+    st.markdown("---")
     st.subheader("Topic Word Cloud") 
     st.write("*Generate a word cloud for the selected filters.*")
     do_search1 = st.button("Generate Word Cloud", type="primary", width=175)
@@ -683,7 +691,10 @@ with reviews_tab:
     # add grey line separator
     st.markdown("---")
 
-    # --- Search Reviews ---------------------------
+    # ------------------
+    # Tab 3 Search Reviews
+    # ------------------
+
     st.subheader("Search Reviews")
     st.write("*Search reviews based on the selected filters and keywords.*")
 
