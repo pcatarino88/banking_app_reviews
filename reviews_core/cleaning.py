@@ -11,7 +11,7 @@ def clean_new_reviews():
     """
     
     # Load new_df_raw.parquet with new raw reviews for cleaning
-    load_path = Path("../assets/dfs_pipeline/new_df_raw.parquet")
+    load_path = Path("assets/dfs_pipeline/new_df_raw.parquet")
     df = pd.read_parquet(load_path)
 
     # Print original df_shape
@@ -35,7 +35,7 @@ def clean_new_reviews():
     print(f"Cleaned DataFrame shape: {new_df_cleaned.shape}")
 
     # Save new_df_cleaned
-    new_cleaned_path = Path("../assets/dfs_pipeline/new_df_clean.parquet")
+    new_cleaned_path = Path("assets/dfs_pipeline/new_df_clean.parquet")
     new_df_cleaned.to_parquet(new_cleaned_path, index=False)
     print(f"✅ Saved cleaned new reviews → {new_cleaned_path}")
 
@@ -51,11 +51,11 @@ def update_df_clean():
     """
 
     # Load existing cleaned DataFrame
-    existing_df_clean_path: str = "../assets/dfs_pipeline/df_clean.parquet"
+    existing_df_clean_path: str = "assets/dfs_pipeline/df_clean.parquet"
     existing_df_clean = pd.read_parquet(existing_df_clean_path)
 
     # Load new cleaned reviews
-    new_df_clean_path: str = "../assets/dfs_pipeline/new_df_clean.parquet"
+    new_df_clean_path: str = "assets/dfs_pipeline/new_df_clean.parquet"
     new_df_clean = pd.read_parquet(new_df_clean_path)
     
     # Print shapes before concatenation

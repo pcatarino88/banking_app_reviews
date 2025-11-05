@@ -14,7 +14,7 @@ def bertopic_cleaning():
     """
     
     # Load new reviews
-    new_df_clean = pd.read_parquet("../assets/dfs_pipeline/new_df_clean.parquet")
+    new_df_clean = pd.read_parquet("assets/dfs_pipeline/new_df_clean.parquet")
     
     # Add word count column
     new_df_clean['word_count'] = new_df_clean['review_text'].apply(lambda x: len(str(x).split()))
@@ -57,7 +57,7 @@ def bertopic_cleaning():
 
     # save new_df_topics
     new_df_topics = new_df_clean.copy()
-    new_df_topics.to_parquet("../assets/dfs_pipeline/new_df_topics.parquet", index=False)
+    new_df_topics.to_parquet("assets/dfs_pipeline/new_df_topics.parquet", index=False)
 
     return new_df_topics
 
@@ -70,10 +70,10 @@ def apply_bertopic():
     """
     
     # load cleaned DataFrame with bertopic cleaning applied
-    new_df_topics = pd.read_parquet("../assets/dfs_pipeline/new_df_topics.parquet")
+    new_df_topics = pd.read_parquet("assets/dfs_pipeline/new_df_topics.parquet")
 
     # load bertopic model
-    model_path = "../assets/models/bertopic/seed_final_model"
+    model_path = "assets/models/bertopic/seed_final_model"
     bertopic_model = BERTopic.load(model_path, embedding_model=SentenceTransformer("all-MiniLM-L6-v2"))
 
     # Apply bertopic model to get topics
@@ -146,9 +146,9 @@ def apply_bertopic():
     # Save new_df_topics as excel (remove timezone from review_date)
     for col in new_df_topics.select_dtypes(include=["datetimetz"]).columns:
         new_df_topics[col] = new_df_topics[col].dt.tz_localize(None)
-    new_df_topics.to_excel("../assets/dfs_pipeline/new_df_topics.xlsx", index=False)
+    new_df_topics.to_excel("assets/dfs_pipeline/new_df_topics.xlsx", index=False)
 
     # Save new_df_topics as parquet
-    new_df_topics.to_parquet("../assets/dfs_pipeline/new_df_topics.parquet", index=False)
+    new_df_topics.to_parquet("assets/dfs_pipeline/new_df_topics.parquet", index=False)
 
     return new_df_topics

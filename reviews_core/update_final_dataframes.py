@@ -8,7 +8,7 @@ def update_df_monthly():
     """
 
     # Load cleaned DataFrame
-    clean_df_path: str = "../assets/dfs_pipeline/df_clean.parquet"
+    clean_df_path: str = "assets/dfs_pipeline/df_clean.parquet"
     df_clean = pd.read_parquet(clean_df_path)
 
     # Convert 'review_date' to datetime if not already
@@ -28,7 +28,7 @@ def update_df_monthly():
     )
 
     # Save df_monthly to Parquet
-    monthly_df_path: str = "../assets/df_monthly.parquet"
+    monthly_df_path: str = "assets/df_monthly.parquet"
     df_monthly.to_parquet(monthly_df_path, index=False)
     print(f"✅ Saved monthly aggregated DataFrame → {monthly_df_path}")
 
@@ -39,17 +39,17 @@ def update_df_topic():
     
     """
     Updates the existing DataFrame with topics by appending new reviews with topics.
-    - Loads the existing Dataframe from "../assets/df_topic.parquet"
-    - Appends new reviews from "../assets/dfs_pipeline/new_df_topics.parquet"
-    - Saves the updated DataFrame back to "../assets/df_topic.parquet"
+    - Loads the existing Dataframe from "assets/df_topic.parquet"
+    - Appends new reviews from "assets/dfs_pipeline/new_df_topics.parquet"
+    - Saves the updated DataFrame back to "assets/df_topic.parquet"
     """
 
     # load existing DataFrame with topics
-    existing_df_topic_path: str = "../assets/df_topic.parquet"
+    existing_df_topic_path: str = "assets/df_topic.parquet"
     existing_df_topic = pd.read_parquet(existing_df_topic_path)
 
     # load new reviews with topics
-    new_df_topics_path: str = "../assets/dfs_pipeline/new_df_topics.parquet"
+    new_df_topics_path: str = "assets/dfs_pipeline/new_df_topics.parquet"
     new_df_topics = pd.read_parquet(new_df_topics_path)
 
     # print shapes before concatenation
@@ -60,8 +60,8 @@ def update_df_topic():
     updated_df_topic = pd.concat([existing_df_topic, new_df_topics], ignore_index=True)
 
     # save updated DataFrame
-    updated_df_topic.to_parquet("../assets/df_topic.parquet")
+    updated_df_topic.to_parquet("assets/df_topic.parquet")
 
-    print(f"✅ Updated df_topic saved to ../assets/df_topic.parquet. New shape: {updated_df_topic.shape}")
+    print(f"✅ Updated df_topic saved to assets/df_topic.parquet. New shape: {updated_df_topic.shape}")
 
     return updated_df_topic

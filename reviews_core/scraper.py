@@ -17,11 +17,11 @@ def scrape_new_reviews():
     }
 
     # existing full dataset
-    existing_path = Path("../assets/dfs_pipeline/df_raw.parquet")
+    existing_path = Path("assets/dfs_pipeline/df_raw.parquet")
     df_raw = pd.read_parquet(existing_path)
 
     # Path to save new reviews
-    new_path = Path("../assets/dfs_pipeline/new_df_raw.parquet")
+    new_path = Path("assets/dfs_pipeline/new_df_raw.parquet")
 
     # seen IDs to avoid duplicates
     seen_ids = set(df_raw.get("reviewId", pd.Series(dtype=str)).dropna().unique())
