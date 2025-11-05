@@ -1,86 +1,68 @@
 import pandas as pd
 import numpy as np
 import re
+from pathlib import Path
 
-# MISSING: REMOVE INPUT AND OUPUT PATHS, PASS DF DIRECTLY
 
-def cleaning(input_path="../assets/intermediate_dfs/df_raw.parquet",
-             output_path="../assets/intermediate_dfs/df_clean.parquet"):
+def clean_new_reviews():
     """
-    Loads df_raw from input path, cleans it into a consistent schema and saves df_clean in output path. 
-    Removes reviews prior to date 2019-01-01.
+    Receives an input_df with raw data, cleans it into a consistent schema and returns the cleaned DataFrame.
     """
-    df = pd.read_parquet(input_path)
+    # Load new_df_raw.parquet with new raw reviews for cleaning
+    load_path = Path("../assets/dfs_pipeline/new_df_raw.parquet")
+    df = pd.read_parquet(load_path)
+
+    # Print original df_shape
+    print(f"Original DataFrame shape: {df.shape}")
 
     # Drop columns we don't keep
-    df = df.drop(columns = ['user_name', 'app_id','reviewId'])
+    df = df.drop(columns = ['app_id','reviewId','user_name','thumbs_up','Reply','Reply_Date','App_Version'])
     
-    # Create sequential review_id starting at 1
-    df.insert(0, 'ID', np.arange(1, 1 + len(df), dtype='int32'))
-
-    # Parse date columns
-    for c in ['date', 'Reply_Date']:
-        df[c] = pd.to_datetime(df[c], errors='coerce')
-    
-    # Create column 'year'
-    df['year'] = df['date'].dt.year.astype('Int16')
-    
-    # Create column 'replied' where 1 means replied and 0 means not replied
-    df['replied'] = reviews['Reply'].notna().astype('int8')
-    
-    # Create 'time_to_reply(h)'
-    df['date'] = df['date'].dt.tz_localize(None) # remove timezone info to avoid errors
-    delta = df['Reply_Date'] - df['date']
-    df['time_to_reply(h)'] = (delta.dt.total_seconds() / 3600).round(2)
-    
-    # Split 'app_version''app_version_head','app_version_detail'
-    vs = df['App_Version'].astype(str).str.split('.', n=1, expand=True)
-    df['app_version_head'] = vs[0]
-    df['app_version_detail'] = vs[1]
-    
-    # rows with no '.' → put the whole value in version_detail, macro = NA
-    no_dot = ~df['App_Version'].astype(str).str.contains('.', regex=False)
-    df.loc[no_dot, 'app_version_head'] = pd.NA
-    df.loc[no_dot, 'app_version_detail'] = df.loc[no_dot, 'App_Version']
-    # drop legacy column after splitting
-    df = df.drop(columns=['App_Version'])
+    # Parse 'date' column
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
     
     # Rename columns
     colmap = {
         'app_name': 'app',
         'text': 'review_text',
         'date': 'review_date',
-        'Reply': 'reply_text',
-        'Reply_Date': 'reply_date',
     }
-    df = df.rename(columns=colmap)
+    new_df_cleaned = df.rename(columns=colmap)
+
+    # Print df_cleaned shape
+    print(f"Cleaned DataFrame shape: {new_df_cleaned.shape}")
+
+    # Save new_df_cleaned
+    new_cleaned_path = Path("../assets/dfs_pipeline/new_df_clean.parquet")
+    new_df_cleaned.to_parquet(new_cleaned_path, index=False)
+    print(f"✅ Saved cleaned new reviews → {new_cleaned_path}")
+
+    return new_df_cleaned
+
+
+def update_df_clean(): 
+    """
+    Updates the existing cleaned DataFrame with new cleaned reviews.
+    Loads the existing cleaned DataFrame from a Parquet file, appends the new cleaned reviews,
+    and saves the updated DataFrame back to the Parquet file in dfs_pipeline/df_clean.parquet
+    """
+    # Load existing cleaned DataFrame
+    existing_df_clean_path: str = "../assets/dfs_pipeline/df_clean.parquet"
+    existing_df_clean = pd.read_parquet(existing_df_clean_path)
+
+    # Load new cleaned reviews
+    new_df_clean_path: str = "../assets/dfs_pipeline/new_df_clean.parquet"
+    new_df_clean = pd.read_parquet(new_df_clean_path)
     
-    # --- text cleaning (creates *_clean) ---
-    def _clean_text(x):
-        if not isinstance(x, str):
-            return pd.NA
-        t = x.lower()                                # lowercase
-        t = re.sub(r"http\S+", "", t)                # remove URLs
-        t = re.sub(r"\s+", " ", t).strip()           # normalize whitespace
-        return t if t else pd.NA
+    # Print shapes before concatenation
+    print(f"Existing cleaned DataFrame shape: {existing_df_clean.shape}")
+    print(f"New cleaned DataFrame shape: {new_df_clean.shape}")
 
-    df['review_text_clean'] = df['review_text'].map(_clean_text)
-    
-    df['reply_text_clean']  = df['reply_text'].map(_clean_text)
+    # Concatenate existing and new cleaned DataFrames
+    updated_df_clean = pd.concat([existing_df_clean, new_df_clean], ignore_index=True)
+    print(f"Updated cleaned DataFrame shape: {updated_df_clean.shape}")
 
-    # Drop reviews prior to 2019-01-01
-    df = df.loc[df["review_date"] >= pd.Timestamp("2019-01-01")].copy()
-    
-    # Reorder columns; keep any others at the end
-    new_order = [
-        'ID', 'app', 'score','review_text','review_text_clean','review_date','year','thumbs_up','replied','reply_text',
-        'reply_text_clean','reply_date','time_to_reply(h)','app_version_head','app_version_detail'
-    ]
-
-    df = df[new_order]
-
-    # --- Save Final Dataframe ---
-    df.to_parquet(output_path, index=False)
-    print(f"✅ Cleaned data saved to {output_path}")
-
-    return df
+    # Save updated cleaned DataFrame back to Parquet
+    updated_df_clean.to_parquet(existing_df_clean_path, index=False)
+    print(f"✅ Updated cleaned DataFrame saved to {existing_df_clean_path}")
+    return updated_df_clean

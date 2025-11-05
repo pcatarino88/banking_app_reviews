@@ -18,8 +18,10 @@ __pycache__/
 Thumbs.db
 
 # ---- intermediate dfs and model parameters ----
-assets/intermediate_dfs/
+assets/dfs_pipeline/** */
+assets/dfs_pipeline/
 assets/intermediate_dfs/** */
+assets/intermediate_dfs/
 assets/models/
 assets/models/** */
 
