@@ -5,9 +5,11 @@ from pathlib import Path
 
 
 def clean_new_reviews():
+    
     """
     Receives an input_df with raw data, cleans it into a consistent schema and returns the cleaned DataFrame.
     """
+    
     # Load new_df_raw.parquet with new raw reviews for cleaning
     load_path = Path("../assets/dfs_pipeline/new_df_raw.parquet")
     df = pd.read_parquet(load_path)
@@ -41,11 +43,13 @@ def clean_new_reviews():
 
 
 def update_df_clean(): 
+   
     """
     Updates the existing cleaned DataFrame with new cleaned reviews.
     Loads the existing cleaned DataFrame from a Parquet file, appends the new cleaned reviews,
     and saves the updated DataFrame back to the Parquet file in dfs_pipeline/df_clean.parquet
     """
+
     # Load existing cleaned DataFrame
     existing_df_clean_path: str = "../assets/dfs_pipeline/df_clean.parquet"
     existing_df_clean = pd.read_parquet(existing_df_clean_path)

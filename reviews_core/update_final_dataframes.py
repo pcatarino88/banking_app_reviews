@@ -2,9 +2,11 @@ import pandas as pd
 
 
 def update_df_monthly():
+
     """
     Create/Update df_monthly DataFrame aggregating reviews by month and app.
     """
+
     # Load cleaned DataFrame
     clean_df_path: str = "../assets/dfs_pipeline/df_clean.parquet"
     df_clean = pd.read_parquet(clean_df_path)
@@ -34,6 +36,7 @@ def update_df_monthly():
 
 
 def update_df_topic():
+    
     """
     Updates the existing DataFrame with topics by appending new reviews with topics.
     - Loads the existing Dataframe from "../assets/df_topic.parquet"

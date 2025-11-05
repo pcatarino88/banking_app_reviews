@@ -7,6 +7,7 @@ from bertopic import BERTopic
 
 
 def bertopic_cleaning():
+    
     """
     Loads new_df_clean.parquet
     Adds a column with 'word_count' to the DataFrame.
@@ -62,10 +63,12 @@ def bertopic_cleaning():
 
 
 def apply_bertopic():
+    
     """
     Loads the cleaned DataFrame and applies the trained BERTopic model to assign topics to reviews.
     Returns the DataFrame with topics.
     """
+    
     # load cleaned DataFrame with bertopic cleaning applied
     new_df_topics = pd.read_parquet("../assets/dfs_pipeline/new_df_topics.parquet")
 

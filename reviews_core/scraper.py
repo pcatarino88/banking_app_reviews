@@ -4,6 +4,7 @@ from pathlib import Path
 import time
 from datetime import timezone
 
+
 def scrape_new_reviews():
     # List of APPs' packages to be scraped
     apps = {

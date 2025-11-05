@@ -54,26 +54,27 @@ To achieve this, I combined **text analytics**, **topic modeling**, and **intera
 
 ```text
 assets/
-├── intermediate_dfs/          # Where intermediate datasets are stored
+├── dfs_pipeline/              # Where intermediate datasets are stored
 ├── models/                    # Where topic models are stored
 ├── df_monthly.parquet         # Monthly aggregated app statistics
 ├── df_topic.parquet           # Final topic modeling results
 │
-notebooks/
+notebooks/                     # Notebooks with detailed analysis and explanation of model training
 ├── 1. Data Collection.ipynb
 ├── 2. Preprocessing and EDA.ipynb
 ├── 3. Sentiment Analysis.ipynb
 ├── 4.1. LDA Modelling.ipynb
-├── 4.2. BERTopic Modelling.ipynb
-└── 5. Deployment.ipynb
+└── 4.2. BERTopic Modelling.ipynb
 │
 reviews_core/                  # Custom Python scripts for scraping & processing
 ├── __init__.py
 ├── scraper.py                 # Scrape new reviews and consolidate with existing data
-├── cleaning.py                # Transform df_raw into df_clean
+├── cleaning.py                # Cleans new reviews and consolidates with existent data
+├── apply_bertopic.py          # Applies bertopic model (already trained) on new reviews
+├── update_final_dataframes.py # Updates final dataframes that are used in production
 ├── word_cloud.py              # Create a word cloud for selected filters
 ├── get_sample.py              # Return a sample of reviews given user filters
-└── pipeline.py                # WIP: automatic pipeline for data updates
+└── pipeline.py                # Automatic pipeline for data updates
 │
 app.py                         # Streamlit dashboard
 requirements.txt               # Python dependencies
