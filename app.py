@@ -186,7 +186,7 @@ with app_tab:
         end_month_name = col_em.selectbox(
             "",
             list(months.keys()),
-            index=max_dt.month - 1,
+            index=max_dt.month,
             key="end_month_tab1"
         )
 
