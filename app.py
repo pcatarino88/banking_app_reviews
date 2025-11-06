@@ -421,9 +421,8 @@ with topics_tab:
         yaxis=dict(title="", tickfont=dict(size=14)),
         legend=dict(
             title="Topics", 
-            orientation="h",
-            yanchor="bottom", y=-0.35,
-            xanchor="left", x=0.0,
+            orientation="v",
+            xanchor="right", x=1.15,
             traceorder="normal",
             bgcolor="rgba(255,255,255,0.15)",
             font_size=15,
@@ -431,7 +430,7 @@ with topics_tab:
             itemwidth=30,                 # width reserved for marker + spacing
             tracegroupgap=0
         ),
-        margin=dict(l=5, r=5, t=20, b=60),
+        margin=dict(l=5, r=100, t=20, b=5),
         height=480,
     )
     st.plotly_chart(fig, use_container_width=True)
