@@ -148,7 +148,7 @@ with app_tab:
     # Time Period - start and end date
     min_dt = pd.to_datetime(df_tab1["period_month"]).min().date()
     max_dt = pd.to_datetime(df_tab1["period_month"]).max().date()
-    default_start = max(min_dt, (max_dt - pd.DateOffset(years=3)).date())
+    default_start = max(min_dt, (max_dt - pd.DateOffset(years=2)).date())
 
     with c2:
         start_dt = st.date_input("Start date", value=default_start, min_value=min_dt, max_value=max_dt)
@@ -327,7 +327,7 @@ with topics_tab:
     # Time Period slider
     min_dt = pd.to_datetime(df_tab2["review_date"]).min().date()
     max_dt = pd.to_datetime(df_tab2["review_date"]).max().date()
-    default_start = max(min_dt, (max_dt - pd.DateOffset(years=3)).date())
+    default_start = max(min_dt, (max_dt - pd.DateOffset(years=2)).date())
 
     with c3:
         start_dt = st.date_input("Start date", value=default_start, min_value=min_dt, max_value=max_dt)
@@ -421,21 +421,17 @@ with topics_tab:
         yaxis=dict(title="", tickfont=dict(size=14)),
         legend=dict(
             title="Topics", 
-            orientation="v",
-            yanchor="top",
-            y=0.99,
-            xanchor="right",
-            x=0.99,  # Inside the plot area
+            orientation="h",
+            yanchor="bottom", y=-0.35,
+            xanchor="left", x=0.0,
             traceorder="normal",
-            bgcolor="rgba(255,255,255,0.8)",  # Semi-transparent background
-            bordercolor="rgba(0,0,0,0.2)",
-            borderwidth=1,
+            bgcolor="rgba(255,255,255,0.15)",
             font_size=15,
             itemsizing="constant",        # makes marker a fixed size
             itemwidth=30,                 # width reserved for marker + spacing
             tracegroupgap=0
         ),
-        margin=dict(l=5, r=5, t=20, b=5),
+        margin=dict(l=5, r=5, t=20, b=60),
         height=480,
     )
     st.plotly_chart(fig, use_container_width=True)
