@@ -11,6 +11,7 @@ from reviews_core.word_cloud import generate_wordcloud, stop_words
 from openai import OpenAI
 from streamlit.components.v1 import html
 import datetime as dt
+import calendar
 
 
 # -------------------------------
@@ -167,10 +168,22 @@ with app_tab:
             index=years.index(default_start.year),
             key="start_year_tab1"
         )
+
+        # if the user picks the earliest year we have, only show months from min_dt.month
+        if start_year == min_dt.year:
+            start_months_dict = {name: num for name, num in months.items() if num >= min_dt.month}
+        else:
+            start_months_dict = months
+
+        # pick default month
+        start_default_month = default_start.month
+        if start_year == min_dt.year and start_default_month < min_dt.month:
+            start_default_month = min_dt.month
+
         start_month_name = col_sm.selectbox(
             "",
-            list(months.keys()),
-            index=default_start.month - 1,
+            list(start_months_dict.keys()),
+            index=list(start_months_dict.values()).index(start_default_month),
             key="start_month_tab1"
         )
 
@@ -183,19 +196,27 @@ with app_tab:
             index=years.index(max_dt.year),
             key="end_year_tab1"
         )
+        # if the user picks the latest year we have, only show months up to max_dt.month
+        if end_year == max_dt.year:
+            end_months_dict = {name: num for name, num in months.items() if num <= max_dt.month}
+        else:
+            end_months_dict = months
+
         end_month_name = col_em.selectbox(
             "",
-            list(months.keys()),
-            index=max_dt.month,
+            list(end_months_dict.keys()),
+            index=list(end_months_dict.values()).index(max_dt.month) if end_year == max_dt.year else 0,
             key="end_month_tab1"
         )
 
     # build real dates
     start_dt = dt.date(start_year, months[start_month_name], 1)
-    end_dt = dt.date(end_year, months[end_month_name], 28)  # any day, we'll wrap with Timestamp
+    end_month_num = months[end_month_name]
+    last_day = calendar.monthrange(end_year, end_month_num)[1] # last day of selected end month
+    end_dt = dt.date(end_year, end_month_num, last_day)
     
     # make sure end >= start
-    if pd.Timestamp(end_dt) < pd.Timestamp(start_dt):
+    if pd.Timestamp(end_dt) <= pd.Timestamp(start_dt):
         st.warning("End date must be after start date.")
         st.stop()
 
