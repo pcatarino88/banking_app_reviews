@@ -10,6 +10,7 @@ from reviews_core.get_sample import get_sample
 from reviews_core.word_cloud import generate_wordcloud, stop_words
 from openai import OpenAI
 from streamlit.components.v1 import html
+import datetime as dt
 
 
 # -------------------------------
@@ -135,7 +136,7 @@ with app_tab:
     # ----------------------------------
     # FILTERS 
     # ----------------------------------
-    c1, s1, c2, s2, c3, s3, c4 = st.columns([2, 0.1, 0.9, 0.05, 0.9, 0.1, 0.7])
+    c1, s1, c2, s2, c3, s3, c4 = st.columns([2, 0.1, 0.8, 0.1, 0.8, 0.1, 0.7])
 
     # Bank Filter
     with c1:
@@ -148,12 +149,33 @@ with app_tab:
     # Time Period - start and end date
     min_dt = pd.to_datetime(df_tab1["period_month"]).min().date()
     max_dt = pd.to_datetime(df_tab1["period_month"]).max().date()
-    default_start = max(min_dt, (max_dt - pd.DateOffset(years=2)).date())
+    years = list(range(min_dt.year, max_dt.year + 1))
+    months = {
+        "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4,
+        "May": 5, "Jun": 6, "Jul": 7, "Aug": 8,
+        "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
+    }
 
+    # --- START DATE
     with c2:
-        start_dt = st.date_input("Start date", value=default_start, min_value=min_dt, max_value=max_dt)
+        col_sy, col_sm = st.columns(2)
+        start_year = col_sy.selectbox("Start Date", years, index=len(years)-2)
+        start_month_name = col_sm.selectbox("", list(months.keys()), index=0)
+
+    # --- END DATE
     with c3:
-        end_dt = st.date_input("End date", value=max_dt, min_value=min_dt, max_value=max_dt)
+        col_ey, col_em = st.columns(2)
+        end_year = col_ey.selectbox("End Date", years, index=len(years)-1)
+        end_month_name = col_em.selectbox("", list(months.keys()), index=max_dt.month-1)
+
+    # build real dates
+    start_dt = dt.date(start_year, months[start_month_name], 1)
+    end_dt = dt.date(end_year, months[end_month_name], 28)  # any day, we'll wrap with Timestamp
+    
+    # make sure end >= start
+    if pd.Timestamp(end_dt) < pd.Timestamp(start_dt):
+        st.warning("End date must be after start date.")
+        st.stop()
 
     # Time Unit 
     with c4:
