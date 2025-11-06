@@ -149,6 +149,8 @@ with app_tab:
     # Time Period - start and end date
     min_dt = pd.to_datetime(df_tab1["period_month"]).min().date()
     max_dt = pd.to_datetime(df_tab1["period_month"]).max().date()
+    default_start = max_dt.replace(year=max_dt.year - 2)
+
     years = list(range(min_dt.year, max_dt.year + 1))
     months = {
         "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4,
@@ -159,14 +161,34 @@ with app_tab:
     # --- START DATE
     with c2:
         col_sy, col_sm = st.columns(2)
-        start_year = col_sy.selectbox("Start Date", years, index=len(years)-2)
-        start_month_name = col_sm.selectbox("", list(months.keys()), index=0)
+        start_year = col_sy.selectbox(
+            "Start Date",
+            years,
+            index=years.index(default_start.year),
+            key="start_year_tab1"
+        )
+        start_month_name = col_sm.selectbox(
+            "",
+            list(months.keys()),
+            index=default_start.month - 1,
+            key="start_month_tab1"
+        )
 
     # --- END DATE
     with c3:
         col_ey, col_em = st.columns(2)
-        end_year = col_ey.selectbox("End Date", years, index=len(years)-1)
-        end_month_name = col_em.selectbox("", list(months.keys()), index=max_dt.month-1)
+        end_year = col_ey.selectbox(
+            "End Date",
+            years,
+            index=years.index(max_dt.year),
+            key="end_year_tab1"
+        )
+        end_month_name = col_em.selectbox(
+            "",
+            list(months.keys()),
+            index=max_dt.month - 1,
+            key="end_month_tab1"
+        )
 
     # build real dates
     start_dt = dt.date(start_year, months[start_month_name], 1)
