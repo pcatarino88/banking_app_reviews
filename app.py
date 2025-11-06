@@ -135,7 +135,7 @@ with app_tab:
     # ----------------------------------
     # FILTERS 
     # ----------------------------------
-    c1, s1, c2, s2, c3, s3, c4 = st.columns([2, 0.1, 1, 0.05, 1, 0.1, 1])
+    c1, s1, c2, s2, c3, s3, c4 = st.columns([2, 0.1, 0.9, 0.05, 0.9, 0.1, 0.7])
 
     # Bank Filter
     with c1:
@@ -148,7 +148,7 @@ with app_tab:
     # Time Period - start and end date
     min_dt = pd.to_datetime(df_tab1["period_month"]).min().date()
     max_dt = pd.to_datetime(df_tab1["period_month"]).max().date()
-    default_start = max(min_dt, (max_dt - pd.DateOffset(years=4)).date())
+    default_start = max(min_dt, (max_dt - pd.DateOffset(years=3)).date())
 
     with c2:
         start_dt = st.date_input("Start date", value=default_start, min_value=min_dt, max_value=max_dt)
@@ -160,7 +160,7 @@ with app_tab:
         unit = st.selectbox(
             "Time Unit",
             options=["Month", "Quarter", "Semester", "Year"],
-            index=1,
+            index=0,
             help="Select preferred time unit: Month, Quarter, Semester or Year."
         )
 
@@ -327,7 +327,7 @@ with topics_tab:
     # Time Period slider
     min_dt = pd.to_datetime(df_tab2["review_date"]).min().date()
     max_dt = pd.to_datetime(df_tab2["review_date"]).max().date()
-    default_start = max(min_dt, (max_dt - pd.DateOffset(years=4)).date())
+    default_start = max(min_dt, (max_dt - pd.DateOffset(years=3)).date())
 
     with c3:
         start_dt = st.date_input("Start date", value=default_start, min_value=min_dt, max_value=max_dt)
