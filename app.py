@@ -422,9 +422,14 @@ with topics_tab:
         legend=dict(
             title="Topics", 
             orientation="v",
-            xanchor="right", x=1.2,
+            yanchor="top",
+            y=0.99,
+            xanchor="right",
+            x=0.99,  # Inside the plot area
             traceorder="normal",
-            bgcolor="rgba(255,255,255,0.15)",
+            bgcolor="rgba(255,255,255,0.8)",  # Semi-transparent background
+            bordercolor="rgba(0,0,0,0.2)",
+            borderwidth=1,
             font_size=15,
             itemsizing="constant",        # makes marker a fixed size
             itemwidth=30,                 # width reserved for marker + spacing
