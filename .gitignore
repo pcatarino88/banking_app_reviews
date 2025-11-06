@@ -20,6 +20,8 @@ Thumbs.db
 # ---- intermediate dfs and model parameters ----
 assets/dfs_pipeline/** */
 assets/dfs_pipeline/
+assets/dfs_pipeline.backup/** */
+assets/dfs_pipeline.backup/
 assets/intermediate_dfs/** */
 assets/intermediate_dfs/
 assets/models/
