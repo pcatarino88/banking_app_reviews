@@ -422,7 +422,7 @@ with topics_tab:
         legend=dict(
             title="Topics", 
             orientation="v",
-            xanchor="right", x=1.15,
+            xanchor="right", x=1.2,
             traceorder="normal",
             bgcolor="rgba(255,255,255,0.15)",
             font_size=15,
@@ -430,7 +430,7 @@ with topics_tab:
             itemwidth=30,                 # width reserved for marker + spacing
             tracegroupgap=0
         ),
-        margin=dict(l=5, r=100, t=20, b=5),
+        margin=dict(l=5, r=5, t=20, b=5),
         height=480,
     )
     st.plotly_chart(fig, use_container_width=True)
