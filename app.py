@@ -580,6 +580,19 @@ with topics_tab:
                 hoverinfo='text'
             ))
         
+        # find max total to adjust x-axis
+        max_total = max(item["total_percentage"] for item in data_for_chart)
+
+        for item in data_for_chart:
+            fig.add_annotation(
+                x=item["total_percentage"] + 0.2,   # a bit to the right of the bar
+                y=item["app"],
+                text=f"{item['total_percentage']:.0f}%",
+                showarrow=False,
+                xanchor="left",
+                font=dict(size=12, color="grey") # use bold font for total
+            )
+
         # Update layout
         fig.update_layout(
             barmode='stack',
@@ -592,15 +605,17 @@ with topics_tab:
             ),
             yaxis=dict(title=''),
             legend=dict(
-                orientation='h',
-                yanchor='bottom',
-                y=-0.4,
-                xanchor='left',
-                x=0.0,
-                title='Subtopics',
+                orientation='v',
+                yanchor='top',
+                y=1.12,
+                xanchor='right',
+                x=1,
+                bgcolor='rgba(255, 255, 255, 0.6)',  # transparent background
+                bordercolor='rgba(0,0,0,0)',
                 font_size=14,
+                title='Subtopics',
             ),
-            margin=dict(l=100, r=20, t=20, b=100),
+            margin=dict(l=90, r=20, t=20, b=70),
             plot_bgcolor='white',
             paper_bgcolor='white',
             font=dict(size=12)
@@ -641,7 +656,7 @@ with topics_tab:
     .main .block-container { padding: 0 !important; margin: 0 !important; }
     .stApp { overflow: visible !important; }
     html { zoom: 0.50; }
-    @page { size: A4; margin-top: 25mm; margin-bottom: 30mm; margin-left: 10mm; margin-right: 10mm; }
+    @page { size: A4; margin-top: 25mm; margin-bottom: 40mm; margin-left: 10mm; margin-right: 10mm; }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -650,7 +665,7 @@ with topics_tab:
     html("""
     <button style="padding:8px 12px; font-size:14px; border-radius:8px; cursor:pointer;"
             onclick="(parent && parent.window ? parent.window.print() : window.print())">
-        📄 Save report in PDF
+        📄 Download report as PDF
     </button>
     """, height=50)
     
