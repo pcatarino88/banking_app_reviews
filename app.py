@@ -452,7 +452,7 @@ with topics_tab:
 
     st.markdown("---")
     st.subheader("🗂️ Topics mentioned")
-    st.write("*For each App, check the most relevant topics mentioned in reviews. Filter by type of review (positive or negative) and time period.*")
+    st.write("*For each App, check the most relevant topics mentioned in reviews. Above you can filter by type of review (positive or negative) and time period.*")
 
     fig = go.Figure()
     for topic in ordered_topics:
@@ -508,6 +508,8 @@ with topics_tab:
 
     st.markdown("---")
     st.subheader("🔍 Detailed subtopics")
+    st.write("*See what people talk about most within each topic.*")
+
 
     # Create df_filtered with ALL columns for reuse
     df_filtered = df_tab2.loc[mask]
