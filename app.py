@@ -592,7 +592,7 @@ with topics_tab:
                 xanchor="left",
                 font=dict(size=12, color="grey") # use bold font for total
             )
-
+        
         # Update layout
         fig.update_layout(
             barmode='stack',
@@ -601,7 +601,7 @@ with topics_tab:
                 title='Proportion of reviews',
                 tickformat='.0f',
                 ticksuffix='%',
-                range=[0, 60]
+                range=[0, 65 if max_total > 50 else 60 if max_total > 40 else 50],
             ),
             yaxis=dict(title=''),
             legend=dict(
@@ -622,7 +622,7 @@ with topics_tab:
         )
         
         # Add gridlines
-        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+        fig.update_xaxes(showgrid=True, gridwidth=0.75, gridcolor='lightgray', griddash='dot') # grids with dotted line
         
         st.plotly_chart(fig, use_container_width=True)
 
@@ -656,7 +656,7 @@ with topics_tab:
     .main .block-container { padding: 0 !important; margin: 0 !important; }
     .stApp { overflow: visible !important; }
     html { zoom: 0.50; }
-    @page { size: A4; margin-top: 25mm; margin-bottom: 40mm; margin-left: 10mm; margin-right: 10mm; }
+    @page { size: A4; margin-top: 25mm; margin-bottom: 30mm; margin-left: 10mm; margin-right: 10mm; }
     }
     </style>
     """, unsafe_allow_html=True)
