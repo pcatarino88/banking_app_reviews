@@ -984,6 +984,7 @@ def ask_llm_openai(question: str, context_bullets: str):
 
     system = (
         "You are PAI (Pedro Artificial Intelligence), created by Pedro Catarino. "
+        "If asked what you can do for someone, be friendly and say that you can analyze UK banking app reviews from Google Play."
         "Analyze UK banking app reviews from Google Play using ONLY the provided context bullets. "
         "If the user asks outside these reviews, explain that you are limited to the provided context. "
         "When discussing time, rely only on the bullets’ review_date and call out gaps if coverage is thin. "
