@@ -122,10 +122,12 @@ st.caption("Interactive analysis of App store reviews of UK banks")
 # Tabs
 app_tab, topics_tab, reviews_tab = st.tabs(["App Ratings", "Key Topics", "Search Reviews"])
 
+
 # ===============================
 # TAB 1: APP RATINGS 
 # ===============================
 with app_tab:
+
 
     # ----------------------------------
     # LOAD
