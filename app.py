@@ -115,7 +115,7 @@ COLOR_CYCLE = [
 # MAIN
 # -------------------------------
 
-st.title("📱 Interactive analysis of Google Store reviews for UK banks")
+st.title("📱 Google store reviews for UK banks apps")
 st.markdown("")
 
 # Tabs
