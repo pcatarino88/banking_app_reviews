@@ -115,9 +115,8 @@ COLOR_CYCLE = [
 # MAIN
 # -------------------------------
 
-st.title("📱 App Reviews")
-c1, c2 = st.columns([6, 2])
-st.caption("Interactive analysis of App store reviews of UK banks")
+st.title("📱 Interactive analysis of Google Store reviews for UK banks")
+st.markdown("")
 
 # Tabs
 app_tab, topics_tab, reviews_tab = st.tabs(["App Ratings", "Key Topics", "Search Reviews"])
@@ -242,9 +241,6 @@ with app_tab:
         st.info("No data for the selected filters.")
         st.stop()
 
-    # --- BLANK SPACING
-    st.write("")     
-
 
     # ----------------------------------
     # Calculate aggregated results for the selected time unit
@@ -271,24 +267,11 @@ with app_tab:
     )
 
     # ----------------------------------
-    # General KPIs
-    # ----------------------------------
-    
-    s1, k1, k2, s2 = st.columns(4)
-    
-    # Total number of reviews
-    total_reviews = int(agg["n_reviews"].sum())
-    k1.metric("Total number of reviews:", f"{total_reviews:,}")
-    
-    # Average rating
-    weighted_avg = (
-        (agg["avg_score"] * agg["n_reviews"]).sum() / max(total_reviews, 1)
-    )
-    k2.metric("Average rating", f"{weighted_avg:.2f} / 5")
-    
-    # ----------------------------------
     # Plot Graph
     # ----------------------------------
+
+    st.markdown("---")
+    st.subheader("📈 Average App Rating")
 
     fmt = {"Month":"%b/%y","Quarter":"%b/%y","Semester":"%b/%y","Year":"%Y"}[unit]
     latest = agg.sort_values("period").groupby("app", as_index=False).tail(1)
@@ -320,7 +303,7 @@ with app_tab:
             alt.Tooltip('avg_score:Q', title='Avg. rating', format='.2f'),
             alt.Tooltip('n_reviews:Q', title='# Reviews')
         ],
-    ).properties(height=420)
+    ).properties(height=350)
 
     st.write("")
 
@@ -787,8 +770,19 @@ with reviews_tab:
 
     do_search2 = st.button("Search Reviews", type="primary", width=175)
 
-    # --- Action button ---------------------------------------------------------
+    # --- Helper to highlight words in review text ---------------------------------
+    def highlight_words(text, words):
+        """Bold the matched words inside the review text (case-insensitive)."""
+        if not words:
+            return text
+        
+        pattern = r"(" + "|".join(re.escape(w) for w in words) + r")"
+        replacement = r"<span style='background-color: yellow; font-weight: bold;'>\1</span>"
+        highlighted = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+        
+        return highlighted
 
+    # --- Action button --------------------------------------------------------- 
     if do_search2:
         df_filtered = df_tab3.copy()
 
@@ -854,7 +848,8 @@ with reviews_tab:
                 c4, c5 ,s6= st.columns([1, 1, 2])
                 c4.markdown(f"**Topic:** {r['bert_macro_label']}")
                 c5.markdown(f"**Subtopic:** {r['bert_label']}")
-                st.markdown(r["review_text"])  # full text, wrapped
+                highlighted_text = highlight_words(r["review_text"], words)
+                st.markdown(highlighted_text, unsafe_allow_html=True)  # full text, wrapped and highlighted search word
             #st.write("")  # small spacer)
 
         # Export to csv option
