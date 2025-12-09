@@ -139,7 +139,7 @@ with app_tab:
     # ----------------------------------
     # FILTERS 
     # ----------------------------------
-    c1, s1, c2, s2, c3, s3, c4 = st.columns([2, 0.1, 0.8, 0.1, 0.8, 0.1, 0.7])
+    c1, s1, c2, s2, c3, s3, c4 = st.columns([2, 0.1, 1, 0.1, 1, 0.1, 0.6])
 
     # Bank Filter
     with c1:
@@ -368,7 +368,7 @@ with topics_tab:
     # Tab 2 Filters
     # ------------------
 
-    c1, s1, c2, s2, c3, s3, c4 = st.columns([0.75, 0.1, 2.75, 0.1, 0.6, 0.04, 0.6])
+    c1, s1, c2, s2, c3, s3, c4 = st.columns([0.85, 0.1, 2.75, 0.1, 0.6, 0.04, 0.6])
 
     # Type of review filter | default 'Negative'
     with c1:
@@ -682,7 +682,7 @@ with reviews_tab:
     df_tab3 = load_df("assets/df_topic.parquet", cols=cols_tab3)
     
     # --- Filters row ---------------------------
-    c1, s1, c2, s2, c3, s3, c4 = st.columns([1, 0.1, 2, 0.1, 2, 0.1, 2])
+    c1, s1, c2, s2, c3, s3, c4 = st.columns([1.2, 0.1, 1.8, 0.1, 1.8, 0.1, 1.8])
 
     # Type of review - default 'Negative'
     with c1:
