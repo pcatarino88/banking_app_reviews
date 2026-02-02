@@ -30,5 +30,6 @@ assets/models/** */
 # ---- Streamlit secrets ----
 .streamlit/secrets.toml
 
-# ---- Debug files ----
+# ---- Debug & perssonal files ----
 debug_*
+reviews_demo.mp4
