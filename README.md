@@ -74,11 +74,11 @@ reviews_core/                  # Custom Python scripts for scraping & processing
 ├── update_final_dataframes.py # Updates final dataframes that are used in production
 ├── word_cloud.py              # Create a word cloud for selected filters
 ├── get_sample.py              # Return a sample of reviews given user filters
-└── pipeline.py                # Automatic pipeline for data updates
 │
 app.py                         # Streamlit dashboard
 requirements.txt               # Python dependencies
 runtime.txt                    # Streamlit runtime version
+run_pipeline.py                # Automatic pipeline for data updates
 README.md                      # Project description
 ```
 
@@ -93,3 +93,5 @@ README.md                      # Project description
 
 3. **Run the Streamlite dashboard**
    streamlit run app.py
+
+4. **Run run_pipeline.py** to update with new reviews
